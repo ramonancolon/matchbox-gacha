@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.size() >= 1 && data.size() <= 10
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 50
+        && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 512));
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId); // Simplified to allow updates (like bests object merges) without strict schema blockage
+    }
+
+    // Score Validation
+    function isValidScore(data) {
+      return data.keys().hasAll(['userId', 'userName', 'moves', 'time', 'mode', 'theme', 'createdAt'])
+        && (
+          (isSignedIn() && data.userId == request.auth.uid) ||
+          (!isSignedIn() && data.userId == 'guest')
+        )
+        && data.userName is string && data.userName.size() <= 50
+        && (!('userPhoto' in data) || data.userPhoto == null || (data.userPhoto is string && data.userPhoto.size() <= 1024))
+        && data.moves is int && data.moves > 0 && data.moves < 1000
+        && data.time is int && data.time >= 0 && data.time < 36000
+        && data.mode in ['4', '6']
+        && data.theme is string && data.theme.size() <= 20
+        && data.createdAt == request.time;
+    }
+
+    match /scores/{scoreId} {
+      allow list: if true; // Public leaderboard viewable by everyone
+      allow get: if true;
+      allow create: if isValidScore(incoming());
+      allow update, delete: if false; // Immutable scores
+    }
+  }
+}

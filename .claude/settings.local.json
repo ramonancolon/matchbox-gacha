@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(node --max-old-space-size=4096 node_modules/.bin/vitest run src/__tests__/services/)",
+      "Bash(cmd /c \"set NODE_OPTIONS=--max-old-space-size=4096 && npx vitest run src/__tests__/services/\")",
+      "Bash(npx vitest *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

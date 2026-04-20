@@ -1,97 +1,117 @@
 # Matchbox Gacha
 
-Matchbox Gacha is a polished, browser-based memory matching game built with React, Tailwind CSS, and Firebase. It features high-fidelity animations, a global leaderboard, and an AI-powered "Suggestion" system.
+A browser-based memory matching game with local high score persistence, a global leaderboard, AI-powered move suggestions, and responsive design across mobile, tablet, and desktop.
 
-## 🚀 Clone And Run
+Built as part of the Vibe Coder Exercise.
+
+**Live URL**: https://matchboxgacha.games
+**Repo URL**: https://github.com/ramonancolon/matchbox-gacha.git
+**Stack**: React, TypeScript, Tailwind CSS, Firebase, Vite
+
+---
+
+## Clone and Run
 
 ### Prerequisites
-- Node.js (v18+)
+- Node.js v18+
 - npm
 
-### Local Setup
-1. **Clone the repository**:
+### Steps
+
+1. **Clone the repository**
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/ramonancolon/matchbox-gacha.git
    cd matchbox-gacha
    ```
 
-2. **Install dependencies**:
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Configure environment variables**:
+3. **Set up environment variables**
    ```bash
    cp .env.example .env
    ```
-   Fill required values in `.env`:
-   - `VITE_GEMINI_API_KEY`
-   - `VITE_FIREBASE_PROJECT_ID`
-   - `VITE_FIREBASE_APP_ID`
-   - `VITE_FIREBASE_API_KEY`
-   - `VITE_FIREBASE_AUTH_DOMAIN`
-   - `VITE_FIREBASE_DATABASE_ID`
-   - `VITE_FIREBASE_STORAGE_BUCKET`
-   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
-   - `VITE_FIREBASE_MEASUREMENT_ID`
+   Open `.env` and fill in the required values. See `.env.example` for descriptions and links to where each key comes from:
+   - `VITE_GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com)
+   - `VITE_FIREBASE_*` — from your [Firebase Console](https://console.firebase.google.com) project settings
 
-4. **Start the development server**:
+4. **Start the dev server**
    ```bash
    npm run dev
    ```
-   The app will be available at `http://localhost:3000`.
+   App runs at `http://localhost:3000`.
 
-5. **Optional checks before shipping changes**:
+---
+
+## Contributing
+
+Use this workflow for every change, no matter how small. Collaborators should create a branch from `main` and open a pull request back into `main`.
+
+1. **Branch from `main`**
    ```bash
-   npm run lint
-   npm run build
+   git checkout -b fix/your-change-name
    ```
+   Branch names must use one of these prefixes:
+   - `docs/` for documentation edits
+   - `feature/` for new features; these require unit tests
+   - `fix/` for bug fixes
+   - `chore/` for config and maintenance edits
 
-## 🛠 Features
-- **Global Leaderboard**: Securely stored high scores via Firestore.
-- **AI Suggestions**: Powered by Gemini 3.5 Flash to help players find matching pairs.
-- **Responsive Design**: Optimized for Mobile, Tablet (Landscape), and Desktop.
-- **Interactive UI**: Fluid animations using `motion` and crisp icons from `lucide-react`.
+2. **Make your change with focused commits**
 
-## 🤝 Contributing
+3. **Add or update tests** for any logic you changed
 
-We welcome contributions. Use this workflow for every feature or fix:
-
-1. **Create a branch** from `main`.
-2. **Implement the change** with focused commits.
-3. **Add or update tests** for the behavior you changed.
-4. **Run required checks locally**:
+4. **Run checks locally before opening a PR**
    ```bash
    npm run test
    npm run lint
    npm run build
    ```
-5. **Open a pull request** with:
+   All three must pass. Do not open a PR if any of them fail.
+
+5. **Open a pull request** against `main` with:
    - What changed
    - Why it changed
-   - How it was tested
+   - How you tested it
 
-## ✅ Testing Guide
+PRs that skip tests or don't pass lint will not be merged.
 
-### Run all test cases
+---
+
+## Running Tests
+
 ```bash
+# Run all tests
 npm run test
-```
 
-### Watch mode while developing
-```bash
+# Watch mode during development
 npm run test:watch
-```
 
-### Coverage report
-```bash
+# Coverage report
 npm run test:coverage
 ```
 
-### When adding a new feature (required)
-- Add tests for new logic/components before merging.
-- Update existing tests if behavior intentionally changed.
-- Do not merge a feature unless `npm run test` passes.
+**When adding a new feature:** tests are required, not optional. The PR template will ask for them explicitly. Do not merge without a passing test run.
 
 ---
-Built as part of the Vibe Coder Exercise.
+
+## Project Structure
+
+```
+src/
+  components/       # UI components (Card, GameBoard, SignInModal, etc.)
+  hooks/            # useMatchingGame — all core game logic lives here
+  services/         # gamePersistenceService, geminiService
+  lib/              # Firebase setup, sound utilities
+  types.ts          # Shared TypeScript types
+```
+
+---
+
+## Notes for Contributors
+
+- `.env` is gitignored. Never commit real API keys.
+- The `GamePersistenceService` interface abstracts storage — if you need to change how scores are saved, implement the interface, don't scatter `localStorage` calls.
+- The Gemini AI hint feature has a local fallback — if the API is unavailable, the game still works.

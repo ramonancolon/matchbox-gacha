@@ -363,7 +363,7 @@ export default function App() {
                   <div>
                     <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">Theme</label>
                     <div className="flex gap-2">
-                      {(['icons', 'emojis'] as GameSettings['theme'][]).map(theme => (
+                      {(['icons', 'emojis', 'fruits'] as GameSettings['theme'][]).map(theme => (
                         <button
                           key={theme}
                           onClick={() => {

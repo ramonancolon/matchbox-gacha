@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import * as Icons from 'lucide-react';
 import { CardData } from '../types';
 import { cn } from '../lib/utils';
+import { FRUIT_IMAGES } from '../assets/themes/fruits';
 
 interface CardProps {
   card: CardData;
@@ -12,8 +13,9 @@ interface CardProps {
 }
 
 export function Card({ card, onClick, disabled, isActive }: CardProps) {
+  const fruitSrc = FRUIT_IMAGES[card.iconName];
   const iconKey = card.iconName as keyof typeof Icons;
-  const IconComponent = iconKey in Icons ? Icons[iconKey] : null;
+  const IconComponent = !fruitSrc && iconKey in Icons ? Icons[iconKey] : null;
 
   return (
     <button 
@@ -40,7 +42,14 @@ export function Card({ card, onClick, disabled, isActive }: CardProps) {
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          {IconComponent ? (
+          {fruitSrc ? (
+            <img
+              src={fruitSrc}
+              alt={card.iconName}
+              draggable={false}
+              className="w-16 h-16 md:w-20 md:h-20 object-contain select-none pointer-events-none"
+            />
+          ) : IconComponent ? (
             <IconComponent className="w-8 h-8 md:w-12 md:h-12" />
           ) : (
             <span className="text-3xl md:text-4xl select-none">{card.iconName}</span>

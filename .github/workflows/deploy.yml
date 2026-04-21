@@ -77,13 +77,14 @@ jobs:
       - name: Upload assets to Bunny CDN
         run: |
           # Upload every file under dist/assets to the Bunny storage zone at /assets/<filename>.
-          # If your storage zone is NOT in New York, change 'ny.storage' to your region
-          # (e.g. 'storage', 'la.storage', 'sg.storage', 'syd.storage', 'uk.storage').
+          # Storage zone region = Falkenstein (DE), so the host is plain 'storage.bunnycdn.com'.
+          # If you move the zone to another region, update the host here (e.g. 'ny.storage',
+          # 'la.storage', 'sg.storage', 'syd.storage', 'uk.storage').
           find dist/assets -type f | while read -r file; do
             filename=$(basename "$file")
             echo "Uploading $filename ..."
             curl -sS --fail -T "$file" \
-              "https://ny.storage.bunnycdn.com/${{ secrets.BUNNY_STORAGE_ZONE }}/assets/$filename" \
+              "https://storage.bunnycdn.com/${{ secrets.BUNNY_STORAGE_ZONE }}/assets/$filename" \
               -H "AccessKey: ${{ secrets.BUNNY_PASSWORD }}"
           done
 

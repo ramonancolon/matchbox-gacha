@@ -5,7 +5,9 @@ AI was my primary development accelerator throughout this project. This document
 ## How AI Was Used
 
 ### Architecture & Refactoring
-I used Cursor (Auto model) to refactor a monolithic `App.tsx` into a clean, modular architecture:
+I used **Claude Sonnet 4.6 with Cursor** for follow-up edits and smaller iterative changes across the codebase, and **Claude Opus 4.7** for bug fixes and larger feature work. I also used **GPT-5.4 with Cursor** heavily for documentation drafting and revision.
+
+Across the implementation work, AI helped refactor a monolithic `App.tsx` into a clean, modular architecture:
 - Extracted all game logic into a `useMatchingGame` custom hook
 - Introduced a `GamePersistenceService` interface to abstract LocalStorage, making a future database swap straightforward
 - Created a `GameBoard` component to separate rendering from state
@@ -13,12 +15,13 @@ I used Cursor (Auto model) to refactor a monolithic `App.tsx` into a clean, modu
 This was the highest-leverage use of AI — large-scale structural changes that would have taken hours manually were completed in minutes, with consistent patterns applied across the codebase.
 
 ### Unit Test Generation
-I used the Claude CLI to generate a comprehensive test suite covering:
+I used **Claude Opus 4.7** for bug-fix and feature work that also required test coverage, including both creating new test cases and updating existing ones when behavior changed. That work covered:
 - Core game logic (card matching, scoring, timer)
 - The Gemini AI hint service (including fallback behavior)
 - The Firebase sign-in modal flow
+- New theme-related behavior such as the fruits theme
 
-I did not just accept the tests as written. I reviewed each test file, ran them, and caught cases where the generated tests were asserting against outdated behavior after I had changed the implementation.
+I did not just accept the tests as written. I reviewed each test file, ran them, and caught cases where generated tests were asserting against outdated behavior after I had changed the implementation. That included both brand new test cases and edits to existing tests when features or fixes changed the expected behavior.
 
 ### Debugging & Problem Solving
 When I hit blockers I didn't immediately know how to solve, I used AI to close the knowledge gap quickly:
@@ -26,6 +29,9 @@ When I hit blockers I didn't immediately know how to solve, I used AI to close t
 - **Audio 403 errors**: External CDN audio URLs were returning 403. AI suggested replacing them with the Web Audio API — I evaluated the tradeoff (no files to host, no external dependency) and approved it.
 - **Gemini API 404 errors**: The model names in the fallback chain were wrong. AI gave me candidate names; I cross-referenced against Google AI Studio documentation before updating them.
 - **Bunny CDN deployment setup**: AI helped me wire Vite's CDN base path and the GitHub Actions upload flow for Bunny storage. I still manually verified the correct storage hostname, secrets, built asset URLs, and final deploy behavior.
+
+### AI Hint Model Choice
+I chose **Gemini models** for the in-game suggestion feature because the feature itself is intentionally simple and lightweight. The hint system does not require deep reasoning or long-form generation, so using Gemini was a pragmatic cost decision: it was cheaper for this use case while still being good enough for short, contextual suggestions.
 
 ### Asset Generation
 I used **Gemini Nano Banana 2** to generate the fruit-theme images that power the new `fruits` card theme.
@@ -38,8 +44,8 @@ I used **Gemini Nano Banana 2** to generate the fruit-theme images that power th
 AI drafted the Firestore security rules. I reviewed the logic manually — specifically the `exists()` checks that prevent orphan score submissions — before deploying them.
 
 ### Documentation Acceleration
-I also used AI to speed up documentation writing and revision:
-- Drafting the initial versions of `README.md`, `DECISIONS_AND_OBSTACLES.md`, and `AI_USAGE.md`
+I used **GPT-5.4 with Cursor** to speed up documentation writing and revision:
+- Drafting and revising `README.md`, `DECISIONS_AND_OBSTACLES.md`, and `AI_USAGE.md`
 - Tightening contributor instructions so another developer could clone the repo, make a branch, run checks, and open a PR without extra explanation
 - Rewriting sections for clarity and conciseness so the docs matched the exercise rubric rather than reading like generic project notes
 
@@ -57,6 +63,7 @@ I did not treat AI output as correct by default. Specific things I checked mysel
 - **Fruit-theme images**: I manually reviewed the generated fruit images before keeping them, then verified that the final selected files were named correctly, placed in the right theme folder, emitted into `dist/assets/`, and rendered correctly in the app.
 - **Prompt iteration**: I verified the image work both through manual code edits and through additional prompting. AI helped generate and revise the image set, but I personally checked the results at each step before accepting them.
 - **CDN behavior**: I manually verified that built assets were rewritten to the Bunny CDN URL, that the hashed files landed in `dist/assets/`, and that the deployment setup improved asset delivery speed while keeping static traffic off the origin as much as practical.
+- **Test coverage changes**: I manually reviewed and ran the tests after AI-generated additions or updates, including new test cases and changes to existing assertions where the implementation had evolved.
 
 ## Where AI Helped Most
 

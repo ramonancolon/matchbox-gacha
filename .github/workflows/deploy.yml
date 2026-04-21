@@ -44,6 +44,7 @@ jobs:
       - name: Build app
         run: npm run build
         env:
+          VITE_CDN_URL: ${{ secrets.VITE_CDN_URL }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -72,6 +73,19 @@ jobs:
         with:
           name: dist
           path: dist
+
+      - name: Upload assets to Bunny CDN
+        run: |
+          # Upload every file under dist/assets to the Bunny storage zone at /assets/<filename>.
+          # If your storage zone is NOT in New York, change 'ny.storage' to your region
+          # (e.g. 'storage', 'la.storage', 'sg.storage', 'syd.storage', 'uk.storage').
+          find dist/assets -type f | while read -r file; do
+            filename=$(basename "$file")
+            echo "Uploading $filename ..."
+            curl -sS --fail -T "$file" \
+              "https://ny.storage.bunnycdn.com/${{ secrets.BUNNY_STORAGE_ZONE }}/assets/$filename" \
+              -H "AccessKey: ${{ secrets.BUNNY_PASSWORD }}"
+          done
 
       - name: Deploy to DreamHost via Rsync
         uses: easingthemes/ssh-deploy@main

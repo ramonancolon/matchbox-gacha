@@ -7,6 +7,7 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    base: process.env.VITE_CDN_URL ? `${process.env.VITE_CDN_URL}/` : '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

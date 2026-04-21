@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Github, Apple, Loader2, X, ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import { signInWithGoogle, signInWithApple, signInEmail, signUpEmail, logGameEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import googleLogo from '../assets/ui/google.svg';
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -148,7 +149,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   disabled={loading}
                   className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-gray-900 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-3 shadow-sm border border-gray-200"
                 >
-                  <img src="/google.svg" className="w-5 h-5" alt="Google" />
+                  <img src={googleLogo} className="w-5 h-5" alt="Google" />
                   Continue with Google
                 </button>
 

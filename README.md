@@ -71,12 +71,38 @@ Use this workflow for every change, no matter how small. Collaborators should cr
    ```
    All three must pass. Do not open a PR if any of them fail.
 
-5. **Open a pull request** against `main` with:
+5. **Bump the version in `package.json`** following semver (see **Versioning** below).
+
+6. **Open a pull request** against `main` with:
    - What changed
    - Why it changed
    - How you tested it
+   - The new version and why that bump level was chosen
 
 PRs that skip tests or don't pass lint will not be merged.
+
+---
+
+## Versioning
+
+The app follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
+
+Bump the version in `package.json` on every merge to `main` using these rules:
+
+| Bump level | When to use it                                                                            | Example changes in this project                                                         |
+| ---------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **MAJOR** (`x.0.0`) | Breaking changes that require users or collaborators to adapt.                    | Removing a theme, changing persisted score format, renaming a required env variable.    |
+| **MINOR** (`0.x.0`) | A new user-facing feature, backwards-compatible.                                  | Adding a new theme, adding a new difficulty level, adding the leaderboard, Bunny CDN.   |
+| **PATCH** (`0.0.x`) | A backwards-compatible bug fix or small internal improvement, no new features.    | Fixing mobile audio unlock, fixing a broken favicon link, tightening a Firestore rule.  |
+
+Guidelines:
+
+- If a PR contains both a feature and a bug fix, bump at the **higher** level (feature = MINOR wins over PATCH).
+- Documentation-only changes (`docs/…` branches) do **not** require a version bump.
+- The version should be set in the same commit (or PR) that introduces the change, so `git log` and the version number tell the same story.
+- Reset the lower segments to zero when bumping a higher one: `1.4.2` → new feature → `1.5.0`, not `1.5.2`.
+
+If you're unsure which bump level applies, default to the higher one — it's safer to over-signal a change than to under-signal one.
 
 ---
 

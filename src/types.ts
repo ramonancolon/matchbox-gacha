@@ -9,7 +9,7 @@ export type GameStatus = 'idle' | 'playing' | 'won';
 
 export interface GameSettings {
   gridSize: number; // e.g., 4 for 4x4
-  theme: 'emojis' | 'icons';
+  theme: 'emojis' | 'icons' | 'fruits';
 }
 
 export interface BestScore {

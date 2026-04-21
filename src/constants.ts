@@ -10,6 +10,8 @@ export const ICON_NAMES = [
   'Ghost', 'Map', 'Compass', 'Umbrella', 'Flame', 'FlaskConical', 'Bomb', 'Crown'
 ];
 
+export { FRUIT_NAMES, FRUIT_IMAGES } from './assets/themes/fruits';
+
 export const GRID_SIZES = [
   { label: '4x4', value: 4 },
   { label: '6x6', value: 6 }

@@ -103,7 +103,8 @@ npm run test:coverage
 src/
   assets/           # ALL image / icon / media files (see "Assets" section below)
     ui/             # Chrome: favicons, logos, provider marks (Google, Apple, etc.)
-    themes/         # Per-theme art for the card grid (icons/, emojis/, ...)
+    themes/         # Per-theme art for the card grid
+      fruits/       # Fruit & vegetable PNGs (banana, watermelon, etc.)
   components/       # UI components (Card, GameBoard, SignInModal, etc.)
   hooks/            # useMatchingGame — all core game logic lives here
   services/         # gamePersistenceService, geminiService
@@ -126,7 +127,7 @@ Why: every file under `src/assets/` flows through Vite's build pipeline and ends
 | Subfolder              | What goes here                                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | `src/assets/ui/`       | App chrome: favicons, the Matchbox Gacha logo, auth provider marks (Google, Apple), empty states, etc.  |
-| `src/assets/themes/`   | Per-theme card art for the matching grid. Group by theme: `themes/icons/`, `themes/emojis/`, etc.       |
+| `src/assets/themes/`   | Per-theme card art for the matching grid. Each theme gets its own subfolder with an `index.ts` barrel that imports the images and exports a `<THEME>_IMAGES` map and `<THEME>_NAMES` array. Current themes: `fruits/`. Follow the same pattern to add new ones.       |
 
 Do not create new top-level folders under `src/assets/` without updating this table and the project structure diagram. If an asset doesn't fit an existing category, propose a new subfolder in your PR description.
 

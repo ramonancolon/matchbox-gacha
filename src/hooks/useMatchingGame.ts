@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { User } from 'firebase/auth';
-import { EMOJIS, ICON_NAMES } from '../constants';
+import { EMOJIS, FRUIT_NAMES, ICON_NAMES } from '../constants';
 import { soundManager } from '../lib/sounds';
 import { getNextMoveHint } from '../services/geminiService';
 import { GamePersistenceService, gamePersistenceService } from '../services/gamePersistenceService';
@@ -15,9 +15,15 @@ interface UseMatchingGameOptions {
   onWin?: (result: { moves: number; time: number; gridSize: number; theme: GameSettings['theme']; user: User }) => void;
 }
 
+const THEME_SOURCES: Record<GameSettings['theme'], readonly string[]> = {
+  icons: ICON_NAMES,
+  emojis: EMOJIS,
+  fruits: FRUIT_NAMES
+};
+
 const createShuffledCards = (settings: GameSettings): CardData[] => {
   const pairCount = (settings.gridSize * settings.gridSize) / 2;
-  const sourceArray = settings.theme === 'icons' ? ICON_NAMES : EMOJIS;
+  const sourceArray = THEME_SOURCES[settings.theme] ?? ICON_NAMES;
   const selectedItems = [...sourceArray].sort(() => Math.random() - 0.5).slice(0, pairCount);
   const cardPool = [...selectedItems, ...selectedItems];
 

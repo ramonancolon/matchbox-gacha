@@ -6,6 +6,7 @@ import { useMatchingGame } from '../../hooks/useMatchingGame';
 import type { GamePersistenceService } from '../../services/gamePersistenceService';
 import type { BestScore, CardData, GameSettings } from '../../types';
 import { getNextMoveHint } from '../../services/geminiService';
+import { FRUIT_NAMES } from '../../assets/themes/fruits';
 
 // ─── module mocks ────────────────────────────────────────────────────────────
 
@@ -165,6 +166,37 @@ describe('useMatchingGame', () => {
       const best: BestScore = { moves: 12, time: 45 };
       const hook = renderGame({ settings: defaultSettings, user: null, soundEnabled: false, persistenceService: createMockPersistence(best) });
       expect(hook.game.bestScore).toEqual(best);
+      hook.unmount();
+    });
+  });
+
+  // ─── fruits theme ───────────────────────────────────────────────────────────
+
+  describe('fruits theme', () => {
+    const fruitsSettings: GameSettings = { gridSize: 4, theme: 'fruits' };
+
+    it('creates 16 cards for a 4×4 grid using fruit names', () => {
+      const hook = renderGame({ settings: fruitsSettings, user: null, soundEnabled: false, persistenceService: createMockPersistence() });
+      expect(hook.game.cards).toHaveLength(16);
+      hook.game.cards.forEach(c => {
+        expect(FRUIT_NAMES).toContain(c.iconName);
+      });
+      hook.unmount();
+    });
+
+    it('every fruit on the board appears exactly twice', () => {
+      const hook = renderGame({ settings: fruitsSettings, user: null, soundEnabled: false, persistenceService: createMockPersistence() });
+      const count: Record<string, number> = {};
+      hook.game.cards.forEach(c => { count[c.iconName] = (count[c.iconName] || 0) + 1; });
+      Object.values(count).forEach(n => expect(n).toBe(2));
+      hook.unmount();
+    });
+
+    it('supports a 6×6 grid (fruit pool is large enough for 18 unique pairs)', () => {
+      const hook = renderGame({ settings: { gridSize: 6, theme: 'fruits' }, user: null, soundEnabled: false, persistenceService: createMockPersistence() });
+      expect(hook.game.cards).toHaveLength(36);
+      const unique = new Set(hook.game.cards.map(c => c.iconName));
+      expect(unique.size).toBe(18);
       hook.unmount();
     });
   });

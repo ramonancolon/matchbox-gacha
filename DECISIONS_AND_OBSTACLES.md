@@ -13,13 +13,15 @@ The scope was deliberately constrained. Rather than adding complex game mechanic
 - **Tablet Landscape Layout**: Most games default to center-alignment on larger screens. I implemented a custom two-column sidebar layout to maximize screen real estate on tablets in landscape mode — this required a separate layout branch in the CSS, but pays off significantly on iPads and landscape phones.
 - **Web Audio API over hosted audio files**: External CDN audio files were returning 403 errors. Rather than host audio files myself, I replaced them with procedurally generated tones via the Web Audio API. No external dependency, no hosting cost, no future availability risk.
 - **Bunny CDN for static assets**: I routed built assets through Bunny CDN so JavaScript, CSS, and images are served from the edge instead of directly from the origin server. That improves load speed, reduces pressure on the DreamHost box as traffic grows, and limits how much static-asset traffic hits the origin directly.
+- **Gemini for the suggestion feature**: The in-game AI hint system is intentionally narrow in scope, so I chose Gemini models as a pragmatic cost/performance fit. The feature only needs short, situational suggestions, not heavyweight generation, so cheaper models were the right tradeoff.
 
 ## Technical Workflow & Tooling
 To maintain high velocity while ensuring code quality, I used an AI-augmented development stack:
 
-- **Cursor (Auto Model) for refactoring**: Used for large-scale architectural shifts — decoupling state logic from UI components, generating service interfaces. Fast and consistent across the codebase.
-- **Claude CLI for test generation**: Programmatically generated the unit test suite. I reviewed and ran all tests, catching cases where generated tests were asserting against stale behavior.
-- **Claude 3.5 Sonnet for finalization**: Used for fine-tuning CSS transitions, hardening Firebase security rules, and performing final logic audits before shipping.
+- **Claude Sonnet 4.6 with Cursor for further edits and small changes**: Used for iterative follow-up edits, smaller refactors, and polishing passes once the main structure was in place.
+- **GPT-5.4 with Cursor for documentation**: Used to draft and revise project documentation, contributor instructions, versioning rules, and submission-ready writeups.
+- **Claude Opus 4.7 for bug fixes and new major features**: Used on the higher-complexity work — shipping larger features, fixing implementation bugs, and updating behavior when multiple parts of the codebase had to move together.
+- **AI-assisted test generation and updates**: This included both creating new test cases and modifying existing tests when behavior changed. I still reviewed the test logic myself and re-ran the full suite before treating it as valid.
 - **Gemini Nano Banana 2 for asset generation**: Used to generate the new fruit-theme images. This sped up creation of a cohesive visual set without having to source mismatched stock assets or draw them by hand.
 
 ## Obstacles & Friction
@@ -31,6 +33,7 @@ To maintain high velocity while ensuring code quality, I used an AI-augmented de
 - **Firebase authorized domains**: The deployed app's domain wasn't registered in Firebase Auth, causing sign-in failures. This wasn't a code problem — it required a manual configuration step in the Firebase Console that I hadn't anticipated.
 - **Theme asset integration**: Adding the fruits theme was not just a matter of dropping images into the repo. The new assets had to be organized into the theme folder structure, routed through Vite's asset pipeline, rendered correctly in cards, and included in the Bunny CDN deploy flow. AI helped generate and iterate on the images, but I still had to manually wire the code and verify the build output.
 - **CDN deployment wiring**: Bunny CDN improved performance and scaling, but it added deployment friction. I had to configure Vite's `base` path, GitHub Actions secrets, Bunny storage uploads, and the correct regional storage hostname before the deploys worked reliably.
+- **Keeping tests aligned with rapid iteration**: Once AI accelerated feature and bug-fix work, the test suite also had to evolve quickly. That created friction around making sure newly generated test cases and edits to older tests still matched the intended behavior rather than freezing outdated assumptions in place.
 
 ## Tradeoffs
 

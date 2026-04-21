@@ -190,7 +190,7 @@ Add these under **Settings → Secrets and variables → Actions**:
 | `VITE_GEMINI_API_KEY`           | From Google AI Studio                                              |
 | `VITE_FIREBASE_*` (all nine)    | From Firebase Console → Project Settings                           |
 
-> If your Bunny storage zone is not in New York, update the region host in `.github/workflows/deploy.yml` (change `ny.storage.bunnycdn.com` to your region, e.g. `la.storage`, `uk.storage`, `sg.storage`, `syd.storage`, or just `storage`).
+> The workflow is configured for a storage zone in **Falkenstein (DE)**, which uses the default `storage.bunnycdn.com` host. If you migrate the zone to another region, update the host in `.github/workflows/deploy.yml` (e.g. `ny.storage`, `la.storage`, `uk.storage`, `sg.storage`, `syd.storage`).
 
 ### Local CDN builds
 

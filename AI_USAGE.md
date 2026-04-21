@@ -25,6 +25,14 @@ When I hit blockers I didn't immediately know how to solve, I used AI to close t
 - **Firebase `auth/unauthorized-domain`**: I didn't know the exact Firebase Console flow to add an authorized domain. I asked AI, got the exact steps, and verified it manually in the console.
 - **Audio 403 errors**: External CDN audio URLs were returning 403. AI suggested replacing them with the Web Audio API — I evaluated the tradeoff (no files to host, no external dependency) and approved it.
 - **Gemini API 404 errors**: The model names in the fallback chain were wrong. AI gave me candidate names; I cross-referenced against Google AI Studio documentation before updating them.
+- **Bunny CDN deployment setup**: AI helped me wire Vite's CDN base path and the GitHub Actions upload flow for Bunny storage. I still manually verified the correct storage hostname, secrets, built asset URLs, and final deploy behavior.
+
+### Asset Generation
+I used **Gemini Nano Banana 2** to generate the fruit-theme images that power the new `fruits` card theme.
+
+- AI helped create the initial fruit and produce illustrations quickly enough to make a full theme practical within scope.
+- I did not treat the first outputs as final. I iterated with new prompts until the images were consistent enough to use together as a set.
+- After generation, I manually selected, named, organized, and integrated the final assets into `src/assets/themes/fruits/`.
 
 ### Firebase Security Rules
 AI drafted the Firestore security rules. I reviewed the logic manually — specifically the `exists()` checks that prevent orphan score submissions — before deploying them.
@@ -45,9 +53,13 @@ I did not treat AI output as correct by default. Specific things I checked mysel
 - **Environment variable setup**: Verified that `.env` was gitignored and that the app correctly read all `VITE_*` keys before pushing.
 - **Analytics events**: Confirmed Firebase Analytics events were firing correctly in the Firebase dashboard. AI wrote the logging calls; I confirmed they were reaching the backend.
 - **Documentation accuracy**: I reviewed the docs after AI drafting to make sure setup steps, branch naming rules, testing requirements, and repo links matched the actual project and exercise requirements.
+- **Fruit-theme code integration**: I manually reviewed the code changes that wired the new `fruits` theme into the settings UI, card-generation logic, image rendering path, tests, and build output.
+- **Fruit-theme images**: I manually reviewed the generated fruit images before keeping them, then verified that the final selected files were named correctly, placed in the right theme folder, emitted into `dist/assets/`, and rendered correctly in the app.
+- **Prompt iteration**: I verified the image work both through manual code edits and through additional prompting. AI helped generate and revise the image set, but I personally checked the results at each step before accepting them.
+- **CDN behavior**: I manually verified that built assets were rewritten to the Bunny CDN URL, that the hashed files landed in `dist/assets/`, and that the deployment setup improved asset delivery speed while keeping static traffic off the origin as much as practical.
 
 ## Where AI Helped Most
 
 The biggest win was **speed on unfamiliar ground**. I didn't know every Firebase permission model, Vite environment variable convention, or Web Audio API detail going in. Using AI to get oriented quickly — then verifying the critical parts myself — let me ship a production-grade result on a short timeline without cutting corners that mattered.
 
-The rule I applied: let AI handle the implementation, verify anything that touches security, external APIs, or user-facing behavior before it goes live.
+The rule I applied: let AI handle the acceleration, then manually verify anything that touches security, external APIs, user-facing behavior, or shipped assets before it goes live. That included both the code and the generated fruit images, with final validation done through hands-on review, manual code edits, and follow-up prompts where needed.

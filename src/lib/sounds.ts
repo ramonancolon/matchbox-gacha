@@ -70,7 +70,18 @@ class SoundManager {
     return end + 0.01;
   }
 
-  play(soundName: SoundName) {
+  /**
+   * Call this inside any user-gesture handler to pre-unlock the AudioContext.
+   * iOS Safari requires resume() to be called synchronously within a gesture.
+   */
+  prime() {
+    const ctx = this.getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+  }
+
+  async play(soundName: SoundName) {
     if (!this.enabled) return;
     const ctx = this.getAudioContext();
     const tones = SOUND_TONES[soundName];
@@ -78,7 +89,7 @@ class SoundManager {
 
     try {
       if (ctx.state === 'suspended') {
-        void ctx.resume();
+        await ctx.resume();
       }
 
       let when = ctx.currentTime;

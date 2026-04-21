@@ -66,6 +66,17 @@ export default function App() {
     }
   });
 
+  // Unlock AudioContext on first user gesture (required by mobile browsers)
+  useEffect(() => {
+    const unlock = () => soundManager.prime();
+    window.addEventListener('touchstart', unlock, { once: true, passive: true });
+    window.addEventListener('click', unlock, { once: true });
+    return () => {
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock);
+    };
+  }, []);
+
   // Tutorial Flow
   useEffect(() => {
     const hasSeenTutorial = gamePersistenceService.getTutorialSeen();

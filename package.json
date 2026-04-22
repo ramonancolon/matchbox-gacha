@@ -1,7 +1,7 @@
 {
   "name": "matchbox-gacha",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@mlc-ai/web-llm": "^0.2.82",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",

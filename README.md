@@ -133,7 +133,7 @@ src/
       fruits/       # Fruit & vegetable PNGs (banana, watermelon, etc.)
   components/       # UI components (Card, GameBoard, SignInModal, etc.)
   hooks/            # useMatchingGame — all core game logic lives here
-  services/         # gamePersistenceService, geminiService
+  services/         # gamePersistenceService, geminiService, localLlmService
   lib/              # Firebase setup, sound utilities
   types.ts          # Shared TypeScript types
 ```
@@ -229,5 +229,5 @@ Add these under **Settings → Secrets and variables → Actions**:
 
 - `.env` is gitignored. Never commit real API keys.
 - The `GamePersistenceService` interface abstracts storage — if you need to change how scores are saved, implement the interface, don't scatter `localStorage` calls.
-- The Gemini AI hint feature has a local fallback — if the API is unavailable, the game still works.
+- The AI hint feature tries a small Gemini chain first, then a browser-local Llama 3.2 1B fallback via WebLLM/WebGPU, then a deterministic scripted fallback so the game still works if AI services are unavailable.
 - All image assets go in `src/assets/`, organized by role (`ui/`, `themes/`, etc.). See the Assets section above.

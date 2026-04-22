@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CardData } from "../types";
+import { getLocalLlmHint } from "./localLlmService";
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
@@ -8,10 +9,13 @@ export interface HintResponse {
   message: string;
 }
 
-// Models tried in order — primary first, then fallbacks on overload/error.
+// Models are tried in order. After the whole chain fails we drop down to a
+// browser-local Llama 3.2 1B via WebLLM, and finally a deterministic script
+// fallback so the hint feature is never fully unavailable.
 const MODEL_FALLBACK_CHAIN = [
-  "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
+  "gemini-3-flash",
+  "gemini-3.1-pro",
 ] as const;
 
 const shouldTryNextModel = (error: unknown): boolean => {
@@ -88,8 +92,12 @@ export async function getNextMoveHint(
     }
   }
 
-  // All API models failed — use local deterministic hint so the feature
-  // never goes completely dark for the player.
+  // All Gemini API models failed — try the in-browser Llama 3.2 1B model next.
+  // Falls through to the deterministic fallback if WebGPU is unavailable, the
+  // weights can't be fetched, or the local model produces an unusable response.
+  const localLlmHint = await getLocalLlmHint(cards, flippedIndices, gridSize);
+  if (localLlmHint) return localLlmHint;
+
   return getLocalFallbackHint(cards, flippedIndices);
 }
 

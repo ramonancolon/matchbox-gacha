@@ -28,10 +28,17 @@ When I hit blockers I didn't immediately know how to solve, I used AI to close t
 - **Firebase `auth/unauthorized-domain`**: I didn't know the exact Firebase Console flow to add an authorized domain. I asked AI, got the exact steps, and verified it manually in the console.
 - **Audio 403 errors**: External CDN audio URLs were returning 403. AI suggested replacing them with the Web Audio API — I evaluated the tradeoff (no files to host, no external dependency) and approved it.
 - **Gemini API 404 errors**: The model names in the fallback chain were wrong. AI gave me candidate names; I cross-referenced against Google AI Studio documentation before updating them.
+- **Browser-local LLM fallback**: AI helped evaluate whether a local fallback was realistic in a frontend-only app, which led to a browser-side Llama 3.2 1B fallback via WebLLM and WebGPU after the Gemini chain is exhausted.
 - **Bunny CDN deployment setup**: AI helped me wire Vite's CDN base path and the GitHub Actions upload flow for Bunny storage. I still manually verified the correct storage hostname, secrets, built asset URLs, and final deploy behavior.
 
 ### AI Hint Model Choice
-I chose **Gemini models** for the in-game suggestion feature because the feature itself is intentionally simple and lightweight. The hint system does not require deep reasoning or long-form generation, so using Gemini was a pragmatic cost decision: it was cheaper for this use case while still being good enough for short, contextual suggestions.
+I chose a **layered hint strategy** for the in-game suggestion feature:
+
+- Try a small Gemini chain first for cheap, fast cloud responses.
+- If that fails, fall back to a browser-local **Llama 3.2 1B** model running through **WebLLM** with **WebGPU**.
+- If local inference is unavailable or unusable, fall back again to a deterministic scripted hint so the feature never goes completely dark.
+
+That approach kept normal hint requests lightweight while still giving the game a no-backend fallback path during Gemini outages.
 
 ### Asset Generation
 I used **Gemini Nano Banana 2** to generate the fruit-theme images that power the new `fruits` card theme.
@@ -53,7 +60,7 @@ I used **GPT-5.4 with Cursor** to speed up documentation writing and revision:
 
 I did not treat AI output as correct by default. Specific things I checked myself:
 
-- **Model names in `geminiService.ts`**: AI gave me model names that were wrong (deprecated). I verified against the live Google AI Studio API before accepting the fix.
+- **Model names and hint fallback order in `geminiService.ts`**: AI gave me candidate model names and fallback ideas, but I verified the final Gemini chain and browser-local fallback behavior myself before accepting the change.
 - **Firebase Auth flow**: Tested sign-in with Google and email/password across browsers. Caught a soft-lock bug (modal stuck after closing the popup) that required a targeted fix.
 - **Responsive layout**: Manually tested on mobile, tablet landscape, and desktop. The two-column sidebar layout required several manual iterations — AI gave me the structure, I adjusted the breakpoints by eye.
 - **Environment variable setup**: Verified that `.env` was gitignored and that the app correctly read all `VITE_*` keys before pushing.

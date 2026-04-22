@@ -8,7 +8,8 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Analytics } from 'firebase/analytics';
@@ -87,6 +88,7 @@ export const appleProvider = new OAuthProvider('apple.com');
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 export const signInWithApple = () => signInWithPopup(auth, appleProvider);
 export const signInEmail = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
+export const sendPasswordReset = (email: string) => sendPasswordResetEmail(auth, email);
 export const signUpEmail = async (email: string, pass: string, name: string) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
   await updateProfile(userCredential.user, { displayName: name });

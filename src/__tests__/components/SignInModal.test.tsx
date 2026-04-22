@@ -10,6 +10,7 @@ const mockSignInWithGoogle = vi.hoisted(() => vi.fn());
 const mockSignInWithApple = vi.hoisted(() => vi.fn());
 const mockSignInEmail = vi.hoisted(() => vi.fn());
 const mockSignUpEmail = vi.hoisted(() => vi.fn());
+const mockSendPasswordReset = vi.hoisted(() => vi.fn());
 const mockLogGameEvent = vi.hoisted(() => vi.fn());
 
 vi.mock('../../lib/firebase', () => ({
@@ -17,6 +18,7 @@ vi.mock('../../lib/firebase', () => ({
   signInWithApple: mockSignInWithApple,
   signInEmail: mockSignInEmail,
   signUpEmail: mockSignUpEmail,
+  sendPasswordReset: mockSendPasswordReset,
   logGameEvent: mockLogGameEvent,
 }));
 
@@ -241,6 +243,75 @@ describe('SignInModal', () => {
       await userEvent.click(screen.getByText('Sign In with Email'));
       await userEvent.click(screen.getByText('Create an account'));
       expect(screen.getByPlaceholderText('e.g. MemoryMaster')).toBeInTheDocument();
+    });
+  });
+
+  // ─── forgot password ─────────────────────────────────────────────────────────
+
+  describe('forgot password', () => {
+    it('shows a "Forgot password?" link on the sign-in view', async () => {
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+    });
+
+    it('does NOT show the "Forgot password?" link on the sign-up view', async () => {
+      renderModal();
+      await userEvent.click(screen.getByText('Create one'));
+      expect(screen.queryByText('Forgot password?')).not.toBeInTheDocument();
+    });
+
+    it('shows an error when "Forgot password?" is clicked with no email entered', async () => {
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      await userEvent.click(screen.getByText('Forgot password?'));
+      expect(mockSendPasswordReset).not.toHaveBeenCalled();
+      expect(screen.getByText(/enter your email/i)).toBeInTheDocument();
+    });
+
+    it('calls sendPasswordReset with the entered email', async () => {
+      mockSendPasswordReset.mockResolvedValue(undefined);
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      await userEvent.type(screen.getByPlaceholderText('name@example.com'), 'user@test.com');
+      await userEvent.click(screen.getByText('Forgot password?'));
+      await waitFor(() =>
+        expect(mockSendPasswordReset).toHaveBeenCalledWith('user@test.com')
+      );
+    });
+
+    it('shows a confirmation message after the reset email is sent', async () => {
+      mockSendPasswordReset.mockResolvedValue(undefined);
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      await userEvent.type(screen.getByPlaceholderText('name@example.com'), 'user@test.com');
+      await userEvent.click(screen.getByText('Forgot password?'));
+      await waitFor(() =>
+        expect(screen.getByText(/password reset email sent to user@test\.com/i)).toBeInTheDocument()
+      );
+    });
+
+    it('shows an error message when the reset request fails', async () => {
+      mockSendPasswordReset.mockRejectedValue(new Error('network-request-failed'));
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      await userEvent.type(screen.getByPlaceholderText('name@example.com'), 'user@test.com');
+      await userEvent.click(screen.getByText('Forgot password?'));
+      await waitFor(() =>
+        expect(screen.getByText('network-request-failed')).toBeInTheDocument()
+      );
+    });
+
+    it('logs password_reset_attempt and password_reset_sent analytics events', async () => {
+      mockSendPasswordReset.mockResolvedValue(undefined);
+      renderModal();
+      await userEvent.click(screen.getByText('Sign In with Email'));
+      await userEvent.type(screen.getByPlaceholderText('name@example.com'), 'user@test.com');
+      await userEvent.click(screen.getByText('Forgot password?'));
+      await waitFor(() => {
+        expect(mockLogGameEvent).toHaveBeenCalledWith('password_reset_attempt');
+        expect(mockLogGameEvent).toHaveBeenCalledWith('password_reset_sent');
+      });
     });
   });
 

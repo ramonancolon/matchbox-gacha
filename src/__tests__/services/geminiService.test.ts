@@ -85,7 +85,7 @@ describe('getNextMoveHint', () => {
     expect(callArgs.config.systemInstruction).toContain('6x6');
   });
 
-  it('includes isMatched status in the board state snapshot', async () => {
+  it('omits matched cards from the board state snapshot to save tokens', async () => {
     mockGenerateContent.mockResolvedValue({
       text: JSON.stringify({ index: 2, message: 'Keep going!' }),
     });
@@ -100,7 +100,36 @@ describe('getNextMoveHint', () => {
     await getNextMoveHint(cardsWithMatch, [], 2);
 
     const callArgs = mockGenerateContent.mock.calls[0][0];
-    expect(callArgs.contents).toContain('"isMatched":true');
+    // Matched cards can't be picked, so they shouldn't be in the prompt at all.
+    expect(callArgs.contents).not.toContain('"Heart"');
+    // Unmatched cards still appear with their original indices preserved.
+    expect(callArgs.contents).toContain('"Star"');
+    expect(callArgs.contents).toContain('"index":2');
+    expect(callArgs.contents).toContain('"index":3');
+  });
+
+  it('skips a Gemini hint that points at a matched card and falls through', async () => {
+    // Model 1 returns an index that is already matched — must NOT be surfaced.
+    // Model 2 returns a legal hint that should win.
+    mockGenerateContent
+      .mockResolvedValueOnce({
+        text: JSON.stringify({ index: 0, message: 'Invalid (already matched)' }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({ index: 3, message: 'Legal move' }),
+      });
+
+    const cardsWithMatch: CardData[] = [
+      { id: 'a-0', iconName: 'Heart', isFlipped: true,  isMatched: true },
+      { id: 'a-1', iconName: 'Heart', isFlipped: true,  isMatched: true },
+      { id: 'b-2', iconName: 'Star',  isFlipped: false, isMatched: false },
+      { id: 'b-3', iconName: 'Star',  isFlipped: false, isMatched: false },
+    ];
+
+    const result = await getNextMoveHint(cardsWithMatch, [], 2);
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ index: 3, message: 'Legal move' });
   });
 
   // ─── fallback chain ──────────────────────────────────────────────────────────

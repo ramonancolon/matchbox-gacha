@@ -1,9 +1,9 @@
 # Decisions & Obstacles
 
 ## Scope & Strategy
-The goal was to build a memory game that felt premium rather than like a generic tutorial project. I focused on **responsive polish** and **global state synchronization** as the primary differentiators to elevate the user experience.
+The goal was to build a memory game that felt polished rather than tutorial-grade. I focused on **responsive polish** and **shared state that could survive real app behavior** as the primary ways to make the project feel more complete.
 
-The scope was deliberately constrained. Rather than adding complex game mechanics, I invested that time in making the infrastructure solid: clean architecture, a real backend, a tested codebase, and a contributor workflow that a second developer could actually use.
+The scope was deliberately constrained. Instead of adding deeper game mechanics, I spent that time on infrastructure: cleaner architecture, a real backend, test coverage, and a contributor workflow another developer could actually follow without extra explanation.
 
 ## Key Decisions
 
@@ -16,31 +16,48 @@ The scope was deliberately constrained. Rather than adding complex game mechanic
 - **Layered AI fallback for the suggestion feature**: The in-game AI hint system is intentionally narrow in scope, so I kept the cloud path lightweight with a small Gemini chain. After that, I added a browser-local Llama 3.2 1B fallback via WebLLM/WebGPU, and then a deterministic scripted fallback so the feature never fully disappears.
 
 ## Technical Workflow & Tooling
-To maintain high velocity while ensuring code quality, I used an AI-augmented development stack:
+To move quickly without giving up code quality, I used an AI-augmented development stack:
 
-- **Claude Sonnet 4.6 with Cursor for further edits and small changes**: Used for iterative follow-up edits, smaller refactors, and polishing passes once the main structure was in place.
+- **Google AI Studio for the initial build**: Used for early implementation direction and the first working version of the app.
+- **Cursor Auto / Composer for refactors**: Used for broad restructuring and day-to-day cleanup once the first version existed.
+- **Cursor Auto Premium for ADA and SEO**: Used for the accessibility and SEO sweep because those changes touched HTML, CSS, components, hooks, and tests together.
+- **Claude CLI for unit test creation**: Used to generate and expand tests quickly around game logic, service behavior, modal flows, and fallback paths.
+- **Claude Opus 4.7 for intricate feature refactors**: Used when a change required deeper cross-file reasoning, especially around AI hints, fallback behavior, accessibility hooks, and production hardening.
 - **GPT-5.4 with Cursor for documentation**: Used to draft and revise project documentation, contributor instructions, versioning rules, and submission-ready writeups.
-- **Claude Opus 4.7 for bug fixes and new major features**: Used on the higher-complexity work — shipping larger features, fixing implementation bugs, and updating behavior when multiple parts of the codebase had to move together.
-- **AI-assisted test generation and updates**: This included both creating new test cases and modifying existing tests when behavior changed. I still reviewed the test logic myself and re-ran the full suite before treating it as valid.
 - **Gemini Nano Banana 2 for asset generation**: Used to generate the new fruit-theme images. This sped up creation of a cohesive visual set without having to source mismatched stock assets or draw them by hand.
+
+The most effective pattern was to match the tool to the phase of work. I started with **Google AI Studio** for the initial build, used **Auto / Composer** for broad refactors, then switched to **Claude Opus 4.7** when the refactor became intricate enough to need deeper reasoning across hooks, services, tests, and UI behavior. For documentation, **GPT-5.4** produced better results when it had the current implementation details, repo conventions, and target audience instead of just isolated markdown snippets.
 
 ## Obstacles & Friction
 
-- **Navigation Complexity**: Balancing the sticky navigation across mobile and desktop caused several layout regressions. The "Double Sound Icon" and "Full-Width New Game button" were friction points where the CSS mobile-first approach conflicted with specific landscape requirements.
-- **Popup Z-Indexing**: The suggestion popup originally sat behind the sticky header. Resolved by re-evaluating the stacking context and moving from negative offsets to positive translations combined with an elevated z-index (`z-[70]`).
-- **Firebase Rules**: Hardening Firestore rules to be production-ready while allowing guest score submissions required careful balance — specifically using `exists()` checks to prevent orphan scores from users who delete their accounts.
-- **Gemini API model names**: The AI hint fallback chain used deprecated model names that returned 404s. I cross-referenced Google AI Studio documentation to identify a current working chain before fixing it.
-- **Frontend-only local LLM constraints**: Because this project has no dedicated app server, a "local" AI fallback had to run in the browser rather than on the backend. That made WebLLM + WebGPU the practical path, but also meant accepting device and browser compatibility limits.
-- **Firebase authorized domains**: The deployed app's domain wasn't registered in Firebase Auth, causing sign-in failures. This wasn't a code problem — it required a manual configuration step in the Firebase Console that I hadn't anticipated.
-- **Theme asset integration**: Adding the fruits theme was not just a matter of dropping images into the repo. The new assets had to be organized into the theme folder structure, routed through Vite's asset pipeline, rendered correctly in cards, and included in the Bunny CDN deploy flow. AI helped generate and iterate on the images, but I still had to manually wire the code and verify the build output.
-- **CDN deployment wiring**: Bunny CDN improved performance and scaling, but it added deployment friction. I had to configure Vite's `base` path, GitHub Actions secrets, Bunny storage uploads, and the correct regional storage hostname before the deploys worked reliably.
-- **Single-environment deployment pipeline**: To stay within the exercise time box and still ship the core requirements plus the optional global leaderboard, I skipped a dedicated staging environment and built one reliable production pipeline instead (GitHub Actions -> Bunny CDN -> VPS). That kept the infrastructure manageable, but it also meant being more disciplined about validating changes locally before merge, especially for the Day 3 PR review flow.
-- **Keeping tests aligned with rapid iteration**: Once AI accelerated feature and bug-fix work, the test suite also had to evolve quickly. That created friction around making sure newly generated test cases and edits to older tests still matched the intended behavior rather than freezing outdated assumptions in place.
+### Production Hardening (Modals, SEO, CI, Hints)
+These showed up during the follow-up pass that tightened accessibility, crawl files, deploy workflow, and hint behavior for real deploys.
+
+- **One source of truth for modals**: Three modals with slightly different Escape, focus, and scroll behavior drifted over time. Consolidating into `useModalA11y` fixed the pattern, but every caller had to align on `dialogRef`, `restoreFocus`, and stable close behavior, and tests had to follow new focus order and accessible names.
+- **`aria-hidden` filtering**: A tab trap that skips any element with an `aria-hidden` attribute incorrectly skips nodes that use `aria-hidden="false"` to re-expose content. The implementation had to treat only `aria-hidden="true"` as hidden.
+- **Focus vs re-renders**: Inline `onClose` handlers caused the focus-trap effect to re-run and steal focus from inputs. Fixing it inside the hook with an `onClose` ref avoided forcing every parent to memorize callbacks.
+- **Twitter card images vs SVG art**: Twitter documents raster formats for card images; pointing `twitter:image` at SVG risked broken previews. Omitting `twitter:image` until a PNG exists was the honest tradeoff, with commented meta tags ready for a future 1200×630 asset.
+- **`public/` vs `src/assets/`**: Crawl and security files (`robots.txt`, `sitemap.xml`, `.well-known`, static OG art) must live under `public/` at repo root, not under `src/assets/`. The README rule had to spell out the exception so contributors do not fight Vite.
+- **CI on fork PRs**: `GITHUB_TOKEN` for `pull_request` from forks does not expose the same secrets as pushes to the default branch. Deploy steps must stay optional when credentials are missing while lint, test, build, and audit still run.
+- **`npm audit` in the pipeline**: `--audit-level=high` is the right bar for production dependency checks, but it creates occasional triage when new advisories land in the ecosystem.
+- **Missing `VITE_GEMINI_API_KEY`**: Hint requests used to walk a failing cloud chain when the key was absent. Early exit to local Llama and deterministic fallback improves behavior, but operators need to know misconfiguration is quiet rather than loudly erroring on every hint.
+
+- **Navigation complexity**: Balancing the sticky navigation across mobile and desktop caused several layout regressions. The "double sound icon" and "full-width New Game button" issues came from the mobile-first CSS approach colliding with specific landscape requirements.
+- **Popup z-indexing**: The suggestion popup originally rendered behind the sticky header. I fixed that by reworking the stacking context and switching from negative offsets to positive translations with a higher z-index (`z-[70]`).
+- **Firebase rules**: Hardening Firestore rules to be production-ready while still allowing guest score submissions required careful balance, especially around `exists()` checks that prevent orphan submissions.
+- **Gemini API model names**: The AI hint fallback chain originally used deprecated model names that returned 404s. I cross-referenced Google AI Studio documentation to identify a current working chain before fixing it.
+- **Frontend-only local LLM constraints**: Because this project has no dedicated app server, a "local" AI fallback had to run in the browser instead of on the backend. That made WebLLM + WebGPU the practical route, but it also introduced browser-support and first-download tradeoffs.
+- **Firebase authorized domains**: The deployed app's domain was not registered in Firebase Auth, so sign-in failed until I fixed the console configuration.
+- **Theme asset integration**: Adding the fruits theme was not just a matter of dropping images into the repo. The assets had to be organized correctly, routed through Vite's pipeline, rendered in the card UI, and included in the Bunny CDN deploy flow.
+- **CDN deployment wiring**: Bunny CDN improved performance and scaling, but it added setup friction. I had to configure Vite's `base` path, GitHub Actions secrets, Bunny uploads, and the correct regional storage hostname before deploys were reliable.
+- **Single-environment deployment pipeline**: To stay within the exercise time box and still ship the core requirements plus the optional global leaderboard, I chose one reliable production pipeline instead of building a separate staging environment.
+- **Keeping tests aligned with rapid iteration**: Once AI accelerated feature and bug-fix work, the test suite also had to evolve quickly. That created friction around making sure newly generated tests and older assertions still matched the intended behavior.
 
 ## Tradeoffs
 
-- **Simple game mechanics, production-grade infrastructure**: I prioritized a solid backend, tested codebase, and clean architecture over complex game design. A deeper game would have been faster to ship but harder to collaborate on.
-- **Gacha theme is cosmetic**: The "Gacha" portion is currently card themes only. A real gacha system would require an inventory database, item economy, and significantly more scope — determined to be out of range for a Day 1 delivery.
-- **Client-side AI calls**: The hint feature still calls Gemini directly from the browser, which exposes the API key in the client bundle. I accepted that tradeoff for this project because it is a game, not a financial application, and the key can be rotated. For outage resilience, the app now also includes a browser-local Llama 3.2 1B fallback via WebLLM, but that comes with its own tradeoffs around browser support, WebGPU availability, and first-run model download cost.
-- **AI-generated images with human review**: Using Gemini Nano Banana 2 to generate the fruits theme was much faster than creating an original art set manually, but it introduced a review step. I accepted the tradeoff because I manually checked the final images for consistency and then verified the code paths, asset names, and prompts before wiring the theme into production.
-- **CDN helps, but does not replace real app security**: Moving static assets to Bunny CDN improves speed and reduces direct origin exposure, but it is not a substitute for Firebase rules, secure deploy credentials, or proper backend access control. I used it as an operational hardening step, not as the main security model.
+- **Simple game mechanics, stronger infrastructure**: I prioritized a solid backend, tested codebase, and cleaner architecture over adding more complicated game systems.
+- **The gacha theme is cosmetic**: The "gacha" portion is currently theme-based presentation only. A true gacha system would require inventory, persistence, and economy design that were out of scope.
+- **Client-side AI calls**: The hint feature still calls Gemini directly from the browser, which exposes the API key in the client bundle. I accepted that tradeoff for this project because it is a game, not a financial application, and the key can be rotated.
+- **Browser-local LLM fallback**: The Llama fallback improves resilience when cloud AI is unavailable, but it depends on WebGPU support and may require a large first-time model download on the triggering device.
+- **AI-generated images with human review**: Using Gemini Nano Banana 2 to generate the fruits theme was much faster than creating an original art set manually, but it added a review and selection step before shipping.
+- **CDN helps, but does not replace real app security**: Moving static assets to Bunny CDN improves speed and reduces direct origin exposure, but it does not replace Firebase rules, secure deploy credentials, or backend access control.

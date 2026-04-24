@@ -76,7 +76,7 @@ export function Leaderboard({ mode: initialMode }: LeaderboardProps) {
   };
 
   return (
-    <div className="bg-surface border border-border-theme rounded-xl p-5 flex flex-col gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <section className="bg-surface border border-border-theme rounded-xl p-5 flex flex-col gap-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500" aria-label="Leaderboard">
       <div className="flex flex-col gap-4 mb-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
@@ -92,6 +92,8 @@ export function Leaderboard({ mode: initialMode }: LeaderboardProps) {
                 setActiveMode(m);
                 logGameEvent('leaderboard_mode_change', { mode: m });
               }}
+              aria-pressed={activeMode === m}
+              aria-label={`Show ${m === 4 ? 'normal' : 'hard'} leaderboard`}
               className={cn(
                 "flex-1 py-1.5 text-[10px] font-bold uppercase transition-all rounded-md border border-transparent",
                 activeMode === m 
@@ -107,14 +109,15 @@ export function Leaderboard({ mode: initialMode }: LeaderboardProps) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3" role="status" aria-live="polite" aria-atomic="true">
         {loading ? (
           <div className="py-8 text-center text-text-muted text-xs font-medium animate-pulse">Syncing with neural net...</div>
         ) : scores.length === 0 ? (
           <div className="py-8 text-center text-text-muted text-xs font-medium italic">No data recorded for this mode yet.</div>
         ) : (
-          scores.map((score, index) => (
-            <div key={score.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-theme transition-colors group">
+          <ol className="space-y-3" aria-label={`Top players for ${activeMode} by ${activeMode} mode`}>
+            {scores.map((score, index) => (
+              <li key={score.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-theme transition-colors group">
               <div className="w-6 text-center font-mono font-black text-text-muted text-xs group-hover:text-primary-theme">
                 {index + 1}
               </div>
@@ -138,10 +141,11 @@ export function Leaderboard({ mode: initialMode }: LeaderboardProps) {
                   <Timer className="w-2.5 h-2.5 opacity-50" /> {formatTime(score.time)}
                 </div>
               </div>
-            </div>
-          ))
+              </li>
+            ))}
+          </ol>
         )}
       </div>
-    </div>
+    </section>
   );
 }

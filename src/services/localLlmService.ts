@@ -1,14 +1,15 @@
 import type { CardData } from "../types";
-import type { HintResponse } from "./geminiService";
+import { type HintResponse, validateHint } from "./geminiService";
 
 // Llama 3.2 1B (Instruct, 4-bit quantized) running in the browser via WebLLM + WebGPU.
 // The first invocation downloads the model weights (~700 MB) and caches them in
 // IndexedDB; subsequent invocations reuse the cached copy and start near-instantly.
 const MODEL_ID = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
 
-// We keep the engine as a module-level singleton so repeated hint requests reuse
-// the same loaded model instead of re-initializing WebGPU every call.
-let enginePromise: Promise<LlmEngine | null> | null = null;
+// Generous ceiling on a single inference call so a stuck GPU backend can't
+// leave the hint button spinning forever. A 1B model on WebGPU typically
+// finishes the 80-token hint in 2–5 seconds.
+const INFERENCE_TIMEOUT_MS = 20000;
 
 // Minimal structural type of what we actually call on the WebLLM engine, so the
 // rest of the service doesn't need to depend on the full @mlc-ai/web-llm types.
@@ -25,38 +26,52 @@ interface LlmEngine {
   };
 }
 
-function hasWebGpu(): boolean {
-  return typeof navigator !== "undefined" && "gpu" in navigator;
-}
+// Module-level singleton so repeated hint requests reuse the same loaded model
+// instead of re-initializing WebGPU every call. Reset to null on init failure
+// so the next hint request can transparently retry.
+let enginePromise: Promise<LlmEngine | null> | null = null;
 
-async function getEngine(): Promise<LlmEngine | null> {
-  if (!hasWebGpu()) return null;
-  if (enginePromise) return enginePromise;
+const hasWebGpu = (): boolean =>
+  typeof navigator !== "undefined" && "gpu" in navigator;
 
-  enginePromise = (async () => {
-    try {
-      // Dynamic import so the ~13 MB WebLLM runtime is only fetched when the
-      // Gemini chain has actually failed. Keeps the initial bundle slim.
-      const webllm = await import("@mlc-ai/web-llm");
-      const engine = await webllm.CreateMLCEngine(MODEL_ID, {
-        initProgressCallback: (p: { progress: number; text: string }) => {
-          // Surface progress in the console so players can tell why the first
-          // fallback hint is slow. We don't need a UI indicator for v1.
-          console.info(`[LocalLLM] ${p.text} (${Math.round(p.progress * 100)}%)`);
-        },
-      });
-      return engine as unknown as LlmEngine;
-    } catch (error) {
+const initEngine = async (): Promise<LlmEngine> => {
+  // Dynamic import so the ~6 MB WebLLM runtime is only fetched when the
+  // Gemini chain has actually failed. Keeps the initial bundle slim.
+  const webllm = await import("@mlc-ai/web-llm");
+  const engine = await webllm.CreateMLCEngine(MODEL_ID, {
+    initProgressCallback: (p: { progress: number; text: string }) => {
+      // Surface progress in the console so players can tell why the first
+      // fallback hint is slow. We don't need a UI indicator for v1.
+      console.info(`[LocalLLM] ${p.text} (${Math.round(p.progress * 100)}%)`);
+    },
+  });
+  return engine as unknown as LlmEngine;
+};
+
+const getEngine = (): Promise<LlmEngine | null> => {
+  if (!hasWebGpu()) return Promise.resolve(null);
+  if (!enginePromise) {
+    enginePromise = initEngine().catch((error) => {
       console.warn("[LocalLLM] Failed to initialize WebLLM engine:", error);
-      enginePromise = null; // allow a retry on the next hint request
+      enginePromise = null; // allow retry on next hint request
       return null;
-    }
-  })();
-
+    });
+  }
   return enginePromise;
-}
+};
 
-function extractJson(raw: string): { index?: unknown; message?: unknown } | null {
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`[LocalLLM] ${label} timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+
+const extractJson = (raw: string): unknown => {
   // Small 1B models sometimes wrap JSON in prose or code fences even when asked
   // for json_object, so we do a forgiving extract rather than a strict parse.
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -69,7 +84,7 @@ function extractJson(raw: string): { index?: unknown; message?: unknown } | null
   } catch {
     return null;
   }
-}
+};
 
 export async function getLocalLlmHint(
   cards: CardData[],
@@ -79,11 +94,15 @@ export async function getLocalLlmHint(
   const engine = await getEngine();
   if (!engine) return null;
 
-  const boardState = cards.map((c, i) => ({
-    index: i,
-    iconName: c.iconName,
-    isMatched: c.isMatched,
-  }));
+  // Only send unmatched cards — matched cards can't be picked, so including
+  // them just enlarges the context and slows inference on a 1B model. The
+  // `isMatched` field is also redundant now since the filter removes them.
+  const boardState: Array<{ index: number; iconName: string }> = [];
+  for (let i = 0; i < cards.length; i++) {
+    if (!cards[i].isMatched) {
+      boardState.push({ index: i, iconName: cards[i].iconName });
+    }
+  }
 
   const systemInstruction =
     `You are a helpful AI assistant for a ${gridSize}x${gridSize} Memory Match game. ` +
@@ -98,33 +117,22 @@ export async function getLocalLlmHint(
     `Flipped: ${JSON.stringify(flippedIndices)}`;
 
   try {
-    const response = await engine.chat.completions.create({
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-      max_tokens: 120,
-      response_format: { type: "json_object" },
-    });
+    const response = await withTimeout(
+      engine.chat.completions.create({
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.2,
+        max_tokens: 80,
+        response_format: { type: "json_object" },
+      }),
+      INFERENCE_TIMEOUT_MS,
+      "inference"
+    );
 
     const text = response.choices[0]?.message?.content ?? "";
-    const parsed = extractJson(text);
-    if (!parsed) return null;
-
-    const index = Number(parsed.index);
-    const message = typeof parsed.message === "string" ? parsed.message : "";
-
-    // Guardrails: reject hallucinated indices or pointers at already-matched or
-    // already-flipped cards, so we don't surface a useless "tip" to the player.
-    if (!Number.isInteger(index) || index < 0 || index >= cards.length) return null;
-    if (cards[index].isMatched) return null;
-    if (flippedIndices.includes(index)) return null;
-
-    return {
-      index,
-      message: message || "Local hint: try this one!",
-    };
+    return validateHint(extractJson(text), cards, flippedIndices);
   } catch (error) {
     console.warn("[LocalLLM] Inference failed, deferring to deterministic fallback:", error);
     return null;

@@ -3,17 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
     <link rel="icon" type="image/svg+xml" href="/src/assets/ui/tabIcon.svg" />
     <link rel="alternate icon" type="image/x-icon" href="/src/assets/ui/favicon.ico" />
-    <title>Matchbox Gacha</title>
-    <meta name="description" content="Matchbox Gacha - a fast memory matching game with leaderboard and hints." />
-    <meta property="og:title" content="Matchbox Gacha" />
-    <meta property="og:description" content="Play Matchbox Gacha, flip cards, find pairs, and climb the leaderboard." />
+    <title>Matchbox Gacha | Memory Match Game with Leaderboards</title>
+    <meta name="description" content="Play Matchbox Gacha, a fast browser memory game with AI hints, difficulty modes, and a global leaderboard powered by Firebase." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://matchboxgacha.games/" />
+    <meta property="og:title" content="Matchbox Gacha | Memory Match Game" />
+    <meta property="og:description" content="Flip cards, find pairs, use AI hints, and climb the global leaderboard in Matchbox Gacha." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:title" content="Matchbox Gacha" />
-    <meta name="twitter:description" content="Play Matchbox Gacha, flip cards, find pairs, and climb the leaderboard." />
+    <meta property="og:url" content="https://matchboxgacha.games/" />
+    <meta property="og:site_name" content="Matchbox Gacha" />
+    <meta property="og:image" content="https://matchboxgacha.games/og-image.svg" />
+    <meta property="og:image:alt" content="Matchbox Gacha memory game banner" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Matchbox Gacha | Memory Match Game" />
+    <meta name="twitter:description" content="Flip cards, find pairs, use AI hints, and climb the global leaderboard." />
+    <!--
+      `twitter:image` is intentionally omitted: Twitter/X docs list
+      JPG/PNG/WEBP/GIF only and do not reliably render SVG. When a 1200x630
+      PNG lands at public/og-image.png, re-add:
+        <meta name="twitter:image" content="https://matchboxgacha.games/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Matchbox Gacha",
+        "url": "https://matchboxgacha.games/",
+        "description": "A browser memory matching game with AI hints and global leaderboards.",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "inLanguage": "en"
+      }
+    </script>
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

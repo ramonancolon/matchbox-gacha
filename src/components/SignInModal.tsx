@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Github, Apple, Loader2, X, ArrowLeft, LogIn, UserPlus } from 'lucide-react';
-import { signInWithGoogle, signInWithApple, signInEmail, signUpEmail, logGameEvent } from '../lib/firebase';
+import { signInWithGoogle, signInWithApple, signInEmail, signUpEmail, sendPasswordReset, logGameEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import googleLogo from '../assets/ui/google.svg';
 
@@ -30,6 +30,7 @@ const FIREBASE_AUTH_MESSAGES: Record<string, string> = {
   'auth/too-many-requests':       'Too many failed attempts. Please wait a moment before trying again.',
   'auth/network-request-failed':  'Network error. Please check your connection and try again.',
   'auth/user-disabled':           'This account has been disabled. Please contact support.',
+  'auth/missing-email':           'Please enter your email address first.',
 };
 
 const getErrorMessage = (error: unknown): string => {
@@ -43,6 +44,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [view, setView] = useState<AuthView>('main');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   // Email state
   const [email, setEmail] = useState('');
@@ -53,6 +55,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     if (!isOpen) {
       setLoading(false);
       setError(null);
+      setInfo(null);
       setView('main');
     }
   }, [isOpen]);
@@ -60,8 +63,29 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const handleClose = () => {
     setLoading(false);
     setError(null);
+    setInfo(null);
     setView('main');
     onClose();
+  };
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setInfo(null);
+    if (!email) {
+      setError('Enter your email above, then tap "Forgot password?" again.');
+      return;
+    }
+    setLoading(true);
+    logGameEvent('password_reset_attempt');
+    try {
+      await sendPasswordReset(email);
+      logGameEvent('password_reset_sent');
+      setInfo(`Password reset email sent to ${email}. Check your inbox.`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleProviderSignIn = async (provider: 'google' | 'apple') => {
@@ -139,6 +163,12 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
             {error && (
               <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-xs font-medium text-center">
                 {error}
+              </div>
+            )}
+
+            {info && (
+              <div className="mb-6 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 text-xs font-medium text-center">
+                {info}
               </div>
             )}
 
@@ -231,7 +261,19 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 ml-1">Password</label>
+                  <div className="flex items-center justify-between mb-1.5 ml-1">
+                    <label htmlFor="password" className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Password</label>
+                    {view === 'email-signin' && (
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={loading}
+                        className="text-[10px] font-bold text-primary-theme hover:underline uppercase tracking-wider disabled:opacity-50"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
                   <input
                     id="password"
                     type="password"

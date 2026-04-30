@@ -15,7 +15,9 @@ export default defineConfig(() => {
       __APP_VERSION__: JSON.stringify(appVersion.version),
     },
     plugins: [react(), tailwindcss()],
-    base: process.env.VITE_CDN_URL ? `${process.env.VITE_CDN_URL}/` : '/',
+    // Keep the app shell same-origin so PWA files (`/manifest.webmanifest`,
+    // `/sw.js`) are not rewritten to a CDN origin and blocked by CORS.
+    base: '/',
     build: {
       // WebLLM is intentionally large but lazily loaded only when needed.
       // Raise warning threshold to avoid noisy warnings for that known chunk.

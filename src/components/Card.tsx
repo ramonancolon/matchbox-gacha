@@ -36,8 +36,8 @@ export function Card({ card, onClick, disabled, isActive }: CardProps) {
         <div
           className={cn(
             "absolute inset-0 w-full h-full flex items-center justify-center rounded-xl backface-hidden border-2 text-primary-theme",
-            card.isMatched 
-              ? "bg-[rgba(16,185,129,0.1)] border-success-theme text-success-theme" 
+            card.isMatched
+              ? "bg-success-theme/10 border-success-theme text-success-theme"
               : "bg-surface border-primary-theme shadow-lg shadow-black/5"
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
@@ -59,7 +59,7 @@ export function Card({ card, onClick, disabled, isActive }: CardProps) {
         {/* Back Face (Pattern side) */}
         <div
           className={cn(
-            "absolute inset-0 w-full h-full flex items-center justify-center bg-[#F1F5F9] border-2 border-dashed border-border-theme rounded-xl backface-hidden transition-all duration-300",
+            "absolute inset-0 w-full h-full flex items-center justify-center bg-bg-theme border-2 border-dashed border-border-theme rounded-xl backface-hidden transition-all duration-300",
             isActive && "border-primary-theme bg-primary-light ring-4 ring-primary-theme/30 scale-105"
           )}
           style={{ backfaceVisibility: 'hidden' }}

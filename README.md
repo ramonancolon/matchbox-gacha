@@ -225,6 +225,22 @@ Add these under **Settings → Secrets and variables → Actions**:
 
 ---
 
+## Theme / appearance
+
+The header includes a Light / Dark / System theme toggle (sun / moon / monitor icon, next to the sound button on mobile and desktop). Clicking the button cycles through the three modes:
+
+- **Light** — always use the light palette.
+- **Dark** — always use the dark palette.
+- **System** — follow the OS `prefers-color-scheme` setting; updates live if the OS theme changes while the app is open.
+
+The active preference is persisted under the `localStorage` key `matchbox-gacha:theme` (values `light`, `dark`, or `system`). On first visit, the default is `system`. An inline script in `index.html` reads this value before first paint to avoid a flash of the wrong theme.
+
+Semantic color tokens live in `src/index.css` under `@theme`, with dark overrides scoped to `.dark` on `<html>`. The theme manager (`src/lib/theme.ts` + `src/hooks/useTheme.ts`) toggles that class based on the resolved effective theme.
+
+To test manually: open the app, click the theme toggle in the header, and confirm the choice persists across a refresh. Switch the OS appearance while in `System` mode to confirm the live update.
+
+---
+
 ## Notes for Contributors
 
 - `.env` is gitignored. Never commit real API keys.

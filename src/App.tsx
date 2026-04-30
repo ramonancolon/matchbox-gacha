@@ -10,6 +10,7 @@ import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { Leaderboard } from './components/Leaderboard';
 import { SignInModal } from './components/SignInModal';
+import { ThemeToggle } from './components/ThemeToggle';
 import { TutorialModal } from './components/TutorialModal';
 import { GameSettings, BestScore } from './types';
 import { cn } from './lib/utils';
@@ -17,6 +18,7 @@ import { auth, logOut, syncUserProfile, submitScore, updateUserBest, logGameEven
 import { soundManager } from './lib/sounds';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useMatchingGame } from './hooks/useMatchingGame';
+import { useTheme } from './hooks/useTheme';
 import { gamePersistenceService } from './services/gamePersistenceService';
 
 export default function App() {
@@ -30,6 +32,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const { preference: themePreference, setPreference: setThemePreference } = useTheme();
   const {
     cards,
     flippedIndices,
@@ -146,6 +149,14 @@ export default function App() {
           </div>
           
           <div className="flex lg:hidden items-center gap-2">
+            <ThemeToggle
+              preference={themePreference}
+              onChange={(pref) => {
+                setThemePreference(pref);
+                logGameEvent('theme_preference_change', { preference: pref });
+              }}
+              className="w-9 h-9 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
+            />
             <button
               onClick={toggleSound}
               className="w-9 h-9 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
@@ -196,6 +207,14 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 lg:gap-3 w-full lg:w-auto justify-center lg:justify-end">
+          <ThemeToggle
+            preference={themePreference}
+            onChange={(pref) => {
+              setThemePreference(pref);
+              logGameEvent('theme_preference_change', { preference: pref });
+            }}
+            className="hidden lg:flex w-10 h-10 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"
+          />
           <button
             onClick={toggleSound}
             className="hidden lg:flex w-10 h-10 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"

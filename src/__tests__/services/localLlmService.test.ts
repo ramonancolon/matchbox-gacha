@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { vi, describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from "vitest";
 import type { CardData } from "../../types";
 import type { LocalLlmInstallStatus } from "../../services/localLlmService";
 
@@ -27,11 +27,25 @@ const stubWebGpu = (present: boolean) => {
 };
 
 describe("getLocalLlmHint", () => {
+  beforeAll(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.resetModules();
     vi.clearAllMocks();
     mockIsInstalledWebApp.mockReturnValue(true);
     stubWebGpu(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   /** Local hints only run after install status reports progress 1 (see getLocalLlmHint). */

@@ -142,3 +142,9 @@ In practice, my rule was simple: the more a change touched architecture, externa
 The biggest win was **speed on unfamiliar ground**. I didn't know every Firebase permission model, Vite environment variable convention, or Web Audio API detail going in. Using AI to get oriented quickly — then verifying the critical parts myself — let me ship a production-grade result on a short timeline without cutting corners that mattered.
 
 The rule I applied: let AI handle the acceleration, then manually verify anything that touches security, external APIs, user-facing behavior, or shipped assets before it goes live. That included both the code and the generated fruit images, with final validation done through hands-on review, manual code edits, and follow-up prompts where needed.
+
+## Code Review Assistance
+
+- **Tool:** Gemini (Pro/Ultra)
+- **Context:** Used AI to audit incoming pull requests against the project's required template and style guides.
+- **Outcome:** AI flagged a collaborator note about a local networking issue that would have prevented them from seeing the UI changes they were asking to merge.

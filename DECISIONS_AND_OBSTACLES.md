@@ -65,3 +65,10 @@ These showed up during the follow-up pass that tightened accessibility, crawl fi
 - **Browser-local LLM in the installed app**: The local Llama path improves resilience and privacy for installed-app users, but it depends on WebGPU support and may require a large first-time model download. Until install status reports the model ready, hint requests use server-side Gemini via `getHint` immediately (no blocking wait on WebLLM); after that, the app prefers the local engine when it returns a valid move.
 - **AI-generated images with human review**: Using Gemini Nano Banana 2 to generate the fruits theme was much faster than creating an original art set manually, but it added a review and selection step before shipping.
 - **CDN helps, but does not replace real app security**: Moving static assets to Bunny CDN improves speed and reduces direct origin exposure, but it does not replace Firebase rules, secure deploy credentials, or backend access control.
+
+## Day 3 Review Process
+
+- **Obstacle:** Received a PR that ignored the project template and did not include visual confirmation (screenshots).
+- **Decision:** Formally requested changes and rejected the initial PR to enforce project standards and UI consistency before code entered `main`.
+- **Obstacle:** Conventional Commit mismatch (`fix` vs `feat`) in the merge metadata.
+- **Decision:** Manually corrected the PR title during squash-merge so git history reflects a design update rather than a bug fix.

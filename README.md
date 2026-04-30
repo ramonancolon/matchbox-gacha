@@ -330,9 +330,9 @@ The limiter integration test runs in CI through the Firestore emulator and does 
 
 > The workflow is configured for a storage zone in **Falkenstein (DE)**, which uses the default `storage.bunnycdn.com` host. If you migrate the zone to another region, update the host in `.github/workflows/deploy.yml` (e.g. `ny.storage`, `la.storage`, `uk.storage`, `sg.storage`, `syd.storage`).
 
-### Local CDN builds
+### CDN note
 
-`VITE_CDN_URL` in `.env` only applies when you run `npm run build` locally. For `npm run dev`, leave it unset — Vite will serve assets from `/` as normal.
+The production app shell is intentionally served same-origin so PWA files (`/manifest.webmanifest`, `/sw.js`) are never rewritten to a CDN origin (which can break installability due to CORS). `VITE_CDN_URL` may still be used by external deploy tooling, but the Vite `base` is pinned to `/` for correctness.
 
 ---
 

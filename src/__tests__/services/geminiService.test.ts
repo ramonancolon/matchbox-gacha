@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { vi, describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from 'vitest';
 import type { CardData } from '../../types';
 
 const mockHintFn = vi.hoisted(() => vi.fn());
@@ -35,7 +35,17 @@ const makeCards = (): CardData[] => [
 ];
 
 describe('getNextMoveHint', () => {
+  beforeAll(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     resetCloudHintCircuitBreaker();
     mockIsInstalledWebApp.mockReturnValue(false);
@@ -43,6 +53,10 @@ describe('getNextMoveHint', () => {
     mockHintFn.mockResolvedValue({
       data: { ok: true, index: 1, message: 'Try flipping card at index 1!' },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('returns a parsed hint response on a successful cloud call', async () => {
@@ -355,6 +369,23 @@ describe('getNextMoveHint', () => {
 // ─── validateHint (centralized "must be a legal move" guard) ─────────────────
 
 describe('validateHint', () => {
+  beforeAll(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const cards: CardData[] = [
     { id: 'a-0', iconName: 'Heart', isFlipped: false, isMatched: false },
     { id: 'b-1', iconName: 'Star',  isFlipped: false, isMatched: false },

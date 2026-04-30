@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -12,7 +13,7 @@ import { Leaderboard } from './components/Leaderboard';
 import { LocalLlmInstallModule } from './components/LocalLlmInstallModule';
 import { SignInModal } from './components/SignInModal';
 import { TutorialModal } from './components/TutorialModal';
-import { GameSettings, BestScore } from './types';
+import type { BestScore, GameSettings } from './types';
 import { APP_VERSION } from './constants';
 import { cn } from './lib/utils';
 import { auth, logOut, syncUserProfile, submitScore, updateUserBest, logGameEvent } from './lib/firebase';
@@ -35,6 +36,8 @@ export default function App() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [localLlmInstall, setLocalLlmInstall] = useState(getLocalLlmInstallStatus());
+  const [syncedBests, setSyncedBests] = useState<Record<string, BestScore | null> | null>(null);
+  const currentGridSize = settings.gridSize.toString();
   const {
     cards,
     flippedIndices,
@@ -105,32 +108,77 @@ export default function App() {
     setShowTutorial(false);
   };
 
-  // Auth Listener & Score Sync
+  // Auth Listener
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (u) {
+      if (!u) {
+        setSyncedBests(null);
+      }
+    });
+
+    return unsub;
+  }, []);
+
+  // Auth Score Sync
+  useEffect(() => {
+    let isActive = true;
+
+    const handleAuthSync = async () => {
+      if (!user?.uid) return;
+
+      try {
         const localBestsByMode = gamePersistenceService.getBestScores([4, 6]);
         const localBests: Record<string, BestScore | null> = {
           '4': localBestsByMode[4],
           '6': localBestsByMode[6]
         };
 
-        const authoritativeData = await syncUserProfile(u, localBests);
+        const authoritativeData = await syncUserProfile(user, localBests);
+        if (!isActive) return;
 
-        if (authoritativeData.bests) {
+        const bests = authoritativeData.bests;
+        if (bests && typeof bests === 'object' && Object.keys(bests).length > 0) {
           gamePersistenceService.setBestScores({
-            4: authoritativeData.bests['4'] || null,
-            6: authoritativeData.bests['6'] || null
+            4: bests['4'] || null,
+            6: bests['6'] || null
           });
+          setSyncedBests(bests);
+          const syncedGridScore = bests[currentGridSize];
+          if (syncedGridScore) {
+            setBestScore(syncedGridScore);
+          }
         }
-
-        const currentMode = settings.gridSize;
-        setBestScore(authoritativeData.bests?.[currentMode] || null);
+      } catch (error) {
+        if (isActive) {
+          console.error('Sync failed:', error);
+        }
       }
-    });
-    return unsub;
-  }, [settings.gridSize]);
+    };
+
+    handleAuthSync();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.uid, currentGridSize]);
+
+  // Update current best score when grid size changes or sync completes
+  useEffect(() => {
+    const currentModeStr = settings.gridSize.toString();
+    if (syncedBests) {
+      const syncedBest = syncedBests[currentModeStr];
+      if (syncedBest) {
+        setBestScore(syncedBest);
+      }
+    } else {
+      const bests = gamePersistenceService.getBestScores([settings.gridSize]);
+      const localBest = bests[settings.gridSize];
+      if (localBest) {
+        setBestScore(localBest);
+      }
+    }
+  }, [settings.gridSize, syncedBests, setBestScore]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

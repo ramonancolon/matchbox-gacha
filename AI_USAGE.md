@@ -8,11 +8,13 @@ AI was a development accelerator throughout this project, but not a substitute f
 I used different tools and models for different phases of the project:
 
 - **Google AI Studio** for the initial build and early implementation direction
-- **Cursor Auto / Composer** for broad refactors and day-to-day code reshaping
+- **Cursor Auto / Composer** for broad refactors, day-to-day code reshaping, and unit test creation/expansion
 - **Cursor Auto Premium** for the ADA/accessibility and SEO pass
-- **Claude CLI** for unit test creation and test expansion
+- **Gemini 3.1 Pro Preview Agent** for tightly scoped single-file refactors before Opus validation
 - **Claude Opus 4.7** for intricate feature refactors where multiple files and behaviors had to move together
-- **GPT-5.4 with Cursor** for documentation drafting, documentation restructuring, and clarity passes across multiple markdown files
+- **Google AI Studio + Cursor** for documentation drafting and first-pass documentation structure
+- **GPT-5.4 with Cursor** for final documentation validation, refactoring, and clarity passes across multiple markdown files
+- **Claude CLI (Opus)** for final execution-review passes on test/build output and diffs before deploy
 
 Across the implementation work, AI helped refactor a monolithic `App.tsx` into a more modular architecture:
 - Extracted all game logic into a `useMatchingGame` custom hook
@@ -21,12 +23,20 @@ Across the implementation work, AI helped refactor a monolithic `App.tsx` into a
 
 This was the highest-leverage use of AI. Large structural changes that would have taken hours manually were completed much faster, and the resulting patterns stayed more consistent across the codebase.
 
-My usual workflow was to start with **Auto / Composer** for a broad refactor, then bring in **Claude Opus 4.7** when the change became intricate enough to require deeper reasoning across services, hooks, tests, and UI behavior. That mattered most on work like AI integration, hint fallback behavior, and other changes where the logic lived across several parts of the app instead of in one isolated component.
+My usual workflow was to start with **Google AI Studio** for the first implementation pass, use **Cursor Auto / Composer** for broad refactors and test generation, then bring in **Claude Opus 4.7 in Cursor** to audit and tighten higher-risk cross-file behavior. For tightly scoped single-file edits, I often used a **Gemini 3.1 Pro Preview agent** first and then ran an Opus check immediately after before accepting the change.
 
 For difficult Cursor tasks, I got better results when I added more context up front: related files, current implementation details, known constraints, recent failures, and the exact behavior I wanted preserved. The harder the task, the more important that context became. It helped Cursor and Opus reason across the whole feature instead of optimizing one file in isolation.
 
+### Workflow Quality Gates
+I used a layered review loop to reduce regression risk while keeping iteration speed high:
+
+- **Cursor + Opus (Code Check):** after Gemini or Cursor Auto generated initial edits, I used Opus in Cursor to review logic, catch edge cases, and apply targeted diffs while staying in the editor flow.
+- **Gemini 3.1 Pro Preview Agent (Single-file Refactors):** for tightly scoped single-file edits, I used a Gemini 3.1 Pro Preview agent first, then ran a Cursor Opus check immediately after to validate logic and edge cases before keeping the change.
+- **CLI + Opus (Execution Check):** before CI/deploy, I used Claude CLI (Opus) to review test/build output and diffs (for example: checking `App.tsx` test runs for hidden failures, warnings, or path regressions) before the GitHub workflow took over.
+- **GPT in Cursor (Documentation Check):** once code and runtime checks passed, I used GPT in Cursor for final documentation consistency and clarity sweeps.
+
 ### Unit Test Generation
-I used **Claude CLI** heavily for unit test creation and expansion, especially when a feature or bug fix needed fast coverage across happy paths, edge cases, and fallback behavior. I also used **Claude Opus 4.7** when the tests were tied to a larger feature refactor and needed to move with the implementation. That work covered:
+I used **Cursor** as the primary tool for unit test creation and expansion, especially when a feature or bug fix needed fast coverage across happy paths, edge cases, and fallback behavior. I used **Claude Opus 4.7 in Cursor** to review and adjust generated tests when they were tied to broader feature refactors. That work covered:
 - Core game logic (card matching, scoring, timer)
 - The AI hint service (including cloud, local, and deterministic fallback behavior)
 - The Firebase sign-in modal flow
@@ -65,12 +75,12 @@ I used **Gemini Nano Banana 2** to generate the fruit-theme images that power th
 AI drafted the Firestore security rules. I reviewed the logic manually — specifically the `exists()` checks that prevent orphan score submissions — before deploying them.
 
 ### Documentation Acceleration
-I used **GPT-5.4 with Cursor** to speed up documentation writing and revision:
+I used **Google AI Studio + Cursor** for first-pass documentation drafting, then used **GPT-5.4 with Cursor** for final validation and restructuring:
 - Drafting and revising `README.md`, `DECISIONS_AND_OBSTACLES.md`, and `AI_USAGE.md`
 - Tightening contributor instructions so another developer could clone the repo, make a branch, run checks, and open a PR without extra explanation
 - Rewriting sections for clarity and cohesion so the docs matched the exercise rubric rather than reading like disconnected project notes
 
-For documentation work, GPT-5.4 performed best when I gave it more context than just the file being edited. The strongest results came from providing the surrounding repo conventions, contributor workflow, current implementation details, and the intended audience for the document. That broader context helped it do actual documentation refactoring instead of just line editing.
+For documentation work, GPT-5.4 performed best as a final-pass checker when I gave it more context than just the file being edited. The strongest results came from providing the surrounding repo conventions, contributor workflow, current implementation details, and intended audience, then using GPT to validate consistency and clarity after the initial draft existed.
 
 ### Accessibility & SEO Refactor
 I used **Cursor Auto Premium** to run the ADA/accessibility and SEO hardening pass, then used **Claude Opus 4.7** for the more intricate refactor decisions that needed deeper cross-file reasoning. The accessibility and SEO work was not localized — it touched `index.html`, global CSS, `App.tsx`, every modal component, the leaderboard, the game board, the shared hooks directory, and the test suite simultaneously.
@@ -104,8 +114,7 @@ I used **GPT-5.4 with Cursor** (with broader repo context pasted in or attached)
 ### Onboarding & Deploy Automation Follow-up
 In a later follow-up pass, I used AI to streamline contributor onboarding and reduce setup mistakes:
 
-- Made `npm run dev` default to a local emulator flow (`npm run dev:local`) that starts both Vite and Firebase emulators for Functions and Firestore.
-- Added `npm run dev:cloud` as an explicit opt-in path for hitting deployed cloud services during local development.
+- Updated local guidance to center `npm run dev:cloud` as the primary frontend workflow, with emulator mode available as an optional path.
 - Updated CI/deploy workflow to auto-deploy `functions:getHint` on push, authenticated by a GitHub secret service account key (`FIREBASE_SERVICE_ACCOUNT_JSON`).
 - Updated docs so new contributors can start locally without production credentials, and maintainers can still promote backend changes automatically through the pipeline.
 

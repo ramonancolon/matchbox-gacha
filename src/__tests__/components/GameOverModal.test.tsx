@@ -122,23 +122,19 @@ describe('GameOverModal', () => {
 
     it('submit button is disabled when the name input is empty', () => {
       renderModal({ isGuest: true });
-      const submitBtn = screen.getByRole('button', { name: '' }) ??
-        screen.getAllByRole('button').find(b => b.getAttribute('disabled') !== null);
+      const submitBtn = screen.getByRole('button', { name: /submit guest score/i });
       // Check that the submit icon button exists and is disabled with empty name
       const nameInput = screen.getByPlaceholderText('Enter your name...');
       expect((nameInput as HTMLInputElement).value).toBe('');
+      expect(submitBtn).toBeDisabled();
     });
 
     it('calls onGuestSubmit with the trimmed name when submitted', async () => {
       const onGuestSubmit = vi.fn().mockResolvedValue(undefined);
       renderModal({ isGuest: true, onGuestSubmit });
       await userEvent.type(screen.getByPlaceholderText('Enter your name...'), '  Player1  ');
-      // Click the submit button (the Send icon button)
-      const buttons = screen.getAllByRole('button');
-      const sendButton = buttons.find(b =>
-        b.querySelector('svg') && !b.textContent?.trim()
-      );
-      if (sendButton) await userEvent.click(sendButton);
+      const sendButton = screen.getByRole('button', { name: /submit guest score/i });
+      await userEvent.click(sendButton);
       await waitFor(() => expect(onGuestSubmit).toHaveBeenCalledWith('Player1'));
     });
 
@@ -146,9 +142,8 @@ describe('GameOverModal', () => {
       const onGuestSubmit = vi.fn().mockResolvedValue(undefined);
       renderModal({ isGuest: true, onGuestSubmit });
       await userEvent.type(screen.getByPlaceholderText('Enter your name...'), 'Player1');
-      const buttons = screen.getAllByRole('button');
-      const sendButton = buttons.find(b => b.querySelector('svg') && !b.textContent?.trim());
-      if (sendButton) await userEvent.click(sendButton);
+      const sendButton = screen.getByRole('button', { name: /submit guest score/i });
+      await userEvent.click(sendButton);
       await waitFor(() =>
         expect(screen.getByText(/score submitted to the hall of fame/i)).toBeInTheDocument()
       );
@@ -158,9 +153,8 @@ describe('GameOverModal', () => {
       const onGuestSubmit = vi.fn().mockResolvedValue(undefined);
       renderModal({ isGuest: true, onGuestSubmit });
       await userEvent.type(screen.getByPlaceholderText('Enter your name...'), 'Player1');
-      const buttons = screen.getAllByRole('button');
-      const sendButton = buttons.find(b => b.querySelector('svg') && !b.textContent?.trim());
-      if (sendButton) await userEvent.click(sendButton);
+      const sendButton = screen.getByRole('button', { name: /submit guest score/i });
+      await userEvent.click(sendButton);
       await waitFor(() =>
         expect(screen.queryByPlaceholderText('Enter your name...')).not.toBeInTheDocument()
       );

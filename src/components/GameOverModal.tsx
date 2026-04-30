@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, RotateCcw, Timer, Hash, Send, User } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -18,12 +19,18 @@ export function GameOverModal({ isOpen, moves, time, bestMoves, onReset, isGuest
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setGuestName('');
-      setSubmitted(false);
-      setIsSubmitting(false);
-    }
+    if (!isOpen) return;
+    setGuestName('');
+    setSubmitted(false);
+    setIsSubmitting(false);
   }, [isOpen]);
+
+  // Escape dismisses the "Victory!" modal by starting a new session, and
+  // focus lands on the primary "Start New Session" button for keyboard users.
+  const { initialFocusRef: closeActionRef, dialogRef } = useModalA11y<HTMLButtonElement>({
+    isOpen,
+    onClose: onReset,
+  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -56,6 +63,11 @@ export function GameOverModal({ isOpen, moves, time, bestMoves, onReset, isGuest
             onClick={onReset}
           />
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gameover-title"
+            aria-describedby="gameover-desc"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -69,8 +81,8 @@ export function GameOverModal({ isOpen, moves, time, bestMoves, onReset, isGuest
               </div>
             </div>
 
-            <h2 className="text-3xl font-bold text-text-main mb-2">Victory!</h2>
-            <p className="text-text-muted mb-8 text-sm font-medium">You've successfully completed the neural synchronization.</p>
+            <h2 id="gameover-title" className="text-3xl font-bold text-text-main mb-2">Victory!</h2>
+            <p id="gameover-desc" className="text-text-muted mb-8 text-sm font-medium">You've successfully completed the neural synchronization.</p>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-bg-theme p-4 rounded-xl border border-border-theme">
@@ -94,24 +106,27 @@ export function GameOverModal({ isOpen, moves, time, bestMoves, onReset, isGuest
                   <div className="relative flex-1">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input 
+                      id="guest-name"
                       type="text" 
                       placeholder="Enter your name..."
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       className="w-full bg-surface border border-border-theme rounded-xl pl-10 pr-4 py-2.5 text-sm text-text-main outline-none focus:ring-1 focus:ring-primary-theme transition-all"
+                      aria-label="Enter your name for the leaderboard"
                     />
                   </div>
                   <button
                     onClick={handleGuestSubmit}
                     disabled={!guestName.trim() || isSubmitting}
                     className="aspect-square bg-primary-theme text-white rounded-xl flex items-center justify-center hover:bg-primary-theme/90 disabled:opacity-50 transition-all px-4"
+                    aria-label="Submit guest score"
                   >
                     {isSubmitting ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
             ) : submitted ? (
-              <div className="mb-8 py-3 px-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-xs font-bold">
+              <div role="status" aria-live="polite" className="mb-8 py-3 px-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-xs font-bold">
                 ✓ Score submitted to the Hall of Fame!
               </div>
             ) : bestMoves !== null && (
@@ -121,8 +136,10 @@ export function GameOverModal({ isOpen, moves, time, bestMoves, onReset, isGuest
             )}
 
             <button
+              ref={closeActionRef}
               onClick={onReset}
               className="w-full py-4 bg-primary-theme hover:bg-primary-theme/90 text-white rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-theme/20"
+              aria-label="Start a new game"
             >
               <RotateCcw className="w-5 h-5" /> Start New Session
             </button>

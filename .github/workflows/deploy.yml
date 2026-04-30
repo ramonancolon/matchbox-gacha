@@ -8,13 +8,26 @@ on:
       - main
       - chore/setup-cicd
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  # Cancel redundant CI runs on PRs, but never interrupt an in-progress
+  # deploy on main — partial deploys (Cloud Function + Bunny CDN + DreamHost
+  # rsync are separate steps) can leave prod in an inconsistent state.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -22,30 +35,45 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install dependencies
         run: npm ci
 
+      - name: Dependency vulnerability audit (prod deps)
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Install functions dependencies
+        run: npm --prefix functions ci
+
+      - name: Functions dependency vulnerability audit (prod deps)
+        run: npm --prefix functions audit --audit-level=high --omit=dev
+
       - name: Run tests
         run: npm run test
-        env:
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
 
       - name: Run lint
         run: npm run lint
+
+      - name: Run functions lint
+        run: npm --prefix functions run lint
+
+      - name: Build functions
+        run: npm --prefix functions run build
+
+      - name: Run distributed limiter integration test (Firestore Emulator)
+        # `demo-` prefixed project IDs are reserved by the Firebase emulator
+        # for offline use, so this works in PRs from forks (no secrets needed).
+        run: npm --prefix functions exec -- firebase emulators:exec --project demo-matchbox --only firestore "npm --prefix \"$GITHUB_WORKSPACE/functions\" run test:integration:rate-limit"
 
       - name: Build app
         run: npm run build
         env:
           VITE_CDN_URL: ${{ secrets.VITE_CDN_URL }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -54,6 +82,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_FIREBASE_DATABASE_ID: ${{ secrets.VITE_FIREBASE_DATABASE_ID }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
 
       - name: Upload build artifact
         if: github.event_name == 'push'
@@ -61,18 +90,60 @@ jobs:
         with:
           name: dist
           path: dist
+          retention-days: 7
 
   deploy:
     if: github.event_name == 'push'
     needs: ci
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
+      - name: Checkout
+        # Required: the deploy job needs functions/ source, firestore.rules,
+        # firestore.indexes.json, and firebase.json on disk. The CI artifact
+        # only carries the built React app under dist/.
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install functions dependencies
+        run: npm --prefix functions ci
+
+      - name: Build functions
+        # firebase deploy reads functions/lib/index.js (per the `main` field
+        # in functions/package.json), so the TS output must exist on the
+        # runner before the deploy step.
+        run: npm --prefix functions run build
+
+      - name: Authenticate Firebase CLI
+        # Write the service-account JSON via stdin to avoid shell-escaping
+        # issues with embedded quotes/newlines in the secret payload.
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Firestore rules and indexes
+        # Rule changes shipped via PR must reach prod automatically;
+        # otherwise security regressions can sit unenforced indefinitely.
+        run: npm --prefix functions exec -- firebase deploy --only firestore:rules,firestore:indexes --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive
+
+      - name: Deploy Cloud Function getHint
+        run: npm --prefix functions exec -- firebase deploy --only functions:getHint --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" --non-interactive
 
       - name: Upload assets to Bunny CDN
         run: |

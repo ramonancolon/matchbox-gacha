@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── firebase module mocks (must be before any imports from firebase.ts) ──────
 
@@ -6,11 +6,17 @@ const mockSignInWithPopup = vi.hoisted(() => vi.fn());
 const mockSignOut = vi.hoisted(() => vi.fn());
 const mockSignInWithEmailAndPassword = vi.hoisted(() => vi.fn());
 const mockCreateUserWithEmailAndPassword = vi.hoisted(() => vi.fn());
+const mockSendPasswordResetEmail = vi.hoisted(() => vi.fn());
 const mockUpdateProfile = vi.hoisted(() => vi.fn());
 const mockGetDoc = vi.hoisted(() => vi.fn());
 const mockSetDoc = vi.hoisted(() => vi.fn());
 const mockUpdateDoc = vi.hoisted(() => vi.fn());
 const mockAddDoc = vi.hoisted(() => vi.fn());
+const mockConnectFirestoreEmulator = vi.hoisted(() => vi.fn());
+const mockInitializeAppCheck = vi.hoisted(() => vi.fn());
+const mockReCaptchaV3Provider = vi.hoisted(() => vi.fn(function (key: string) {
+  return { _key: key };
+}));
 
 vi.mock('firebase/app', () => ({
   initializeApp: vi.fn(() => ({})),
@@ -24,11 +30,13 @@ vi.mock('firebase/auth', () => ({
   signOut: mockSignOut,
   signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
   createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
+  sendPasswordResetEmail: mockSendPasswordResetEmail,
   updateProfile: mockUpdateProfile,
 }));
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: vi.fn(() => ({})),
+  connectFirestoreEmulator: mockConnectFirestoreEmulator,
   doc: vi.fn(() => 'mock-doc-ref'),
   collection: vi.fn(() => 'mock-collection-ref'),
   query: vi.fn(() => 'mock-query'),
@@ -49,11 +57,17 @@ vi.mock('firebase/analytics', () => ({
   logEvent: vi.fn(),
 }));
 
+vi.mock('firebase/app-check', () => ({
+  initializeAppCheck: mockInitializeAppCheck,
+  ReCaptchaV3Provider: mockReCaptchaV3Provider,
+}));
+
 import {
   signInWithGoogle,
   signInWithApple,
   signInEmail,
   signUpEmail,
+  sendPasswordReset,
   logOut,
   syncUserProfile,
   updateUserBest,
@@ -113,6 +127,27 @@ describe('Firebase auth functions', () => {
       'test@example.com',
       'secret123'
     );
+  });
+
+  it('signInEmail propagates errors', async () => {
+    mockSignInWithEmailAndPassword.mockRejectedValue(new Error('wrong-password'));
+    await expect(signInEmail('a@b.com', 'bad')).rejects.toThrow('wrong-password');
+  });
+
+  // ─── password reset ──────────────────────────────────────────────────────────
+
+  it('sendPasswordReset calls sendPasswordResetEmail with the email', async () => {
+    mockSendPasswordResetEmail.mockResolvedValue(undefined);
+    await sendPasswordReset('forgot@example.com');
+    expect(mockSendPasswordResetEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      'forgot@example.com'
+    );
+  });
+
+  it('sendPasswordReset propagates errors', async () => {
+    mockSendPasswordResetEmail.mockRejectedValue(new Error('user-not-found'));
+    await expect(sendPasswordReset('missing@example.com')).rejects.toThrow('user-not-found');
   });
 
   it('signUpEmail creates user and sets display name', async () => {
@@ -195,6 +230,19 @@ describe('submitScore', () => {
       'mock-collection-ref',
       expect.objectContaining({ userPhoto: '' })
     );
+  });
+
+  it('propagates errors when the score write fails', async () => {
+    mockAddDoc.mockRejectedValueOnce(new Error('permission-denied'));
+    await expect(
+      submitScore('user-1', 'Player', null, 8, 25, 4, 'icons')
+    ).rejects.toThrow('permission-denied');
+  });
+
+  it('serializes a server timestamp on the createdAt field', async () => {
+    await submitScore('user-1', 'Player', null, 8, 25, 4, 'icons');
+    const doc = mockAddDoc.mock.calls[0][1] as { createdAt: unknown };
+    expect(doc.createdAt).toEqual({ _serverTimestamp: true });
   });
 });
 
@@ -337,5 +385,164 @@ describe('syncUserProfile', () => {
     const profile = await syncUserProfile(user);
 
     expect(profile.displayName).toBe('Anonymous');
+  });
+});
+
+// ─── Firestore emulator wiring ───────────────────────────────────────────────
+//
+// `dev:local` boots the Firestore emulator alongside Functions. The lib/firebase
+// module gates `connectFirestoreEmulator` on import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR.
+// Use vi.resetModules() so each case re-runs the module-load code path with
+// a fresh env stub.
+
+// ─── App Check init ─────────────────────────────────────────────────────────
+//
+// The Cloud Function `getHint` enforces App Check, so the browser must call
+// `initializeAppCheck` with a real reCAPTCHA v3 site key. firebase.ts gates
+// initialization on VITE_FIREBASE_APPCHECK_SITE_KEY (skip on missing/placeholder)
+// and optionally installs a debug token for local dev. These tests lock the
+// gating logic so a misconfigured deploy fails loudly rather than silently
+// dropping every cloud hint.
+
+describe('App Check init', () => {
+  type DebugWindow = Window & { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean };
+
+  const clearDebugToken = () => {
+    delete (globalThis as unknown as DebugWindow).FIREBASE_APPCHECK_DEBUG_TOKEN;
+    if (typeof window !== 'undefined') {
+      delete (window as DebugWindow).FIREBASE_APPCHECK_DEBUG_TOKEN;
+    }
+  };
+
+  // The async IIFE inside initAppCheck awaits a dynamic `import()` of
+  // firebase/app-check before calling our mock, which can take several
+  // microtasks to settle in jsdom. Poll the mock instead of guessing how
+  // many `await Promise.resolve()`s are enough.
+  const waitForAppCheckCall = () =>
+    vi.waitFor(() => expect(mockInitializeAppCheck).toHaveBeenCalled());
+
+  const flushMicrotasks = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+
+  beforeEach(() => {
+    vi.resetModules();
+    mockInitializeAppCheck.mockClear();
+    mockReCaptchaV3Provider.mockClear();
+    clearDebugToken();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    clearDebugToken();
+  });
+
+  it('skips initialization when the site key is empty', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '');
+    await import('../../lib/firebase');
+    await flushMicrotasks();
+    expect(mockInitializeAppCheck).not.toHaveBeenCalled();
+  });
+
+  it('skips initialization when the site key is the .env.example placeholder', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', 'YOUR_RECAPTCHA_V3_SITE_KEY');
+    await import('../../lib/firebase');
+    await flushMicrotasks();
+    expect(mockInitializeAppCheck).not.toHaveBeenCalled();
+  });
+
+  it('initializes App Check with the configured reCAPTCHA v3 site key', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '6LeREAL_SITE_KEY');
+    await import('../../lib/firebase');
+    await waitForAppCheckCall();
+    expect(mockReCaptchaV3Provider).toHaveBeenCalledWith('6LeREAL_SITE_KEY');
+    expect(mockInitializeAppCheck).toHaveBeenCalledTimes(1);
+    const opts = mockInitializeAppCheck.mock.calls[0][1] as { isTokenAutoRefreshEnabled: boolean };
+    expect(opts.isTokenAutoRefreshEnabled).toBe(true);
+  });
+
+  it('installs the debug token from env onto window before init when in dev', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '6LeREAL_SITE_KEY');
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_DEBUG_TOKEN', 'debug-token-abc');
+
+    await import('../../lib/firebase');
+    await waitForAppCheckCall();
+
+    const w = window as DebugWindow;
+    expect(w.FIREBASE_APPCHECK_DEBUG_TOKEN).toBe('debug-token-abc');
+  });
+
+  it('does not overwrite a debug token the developer already set via DevTools', async () => {
+    (window as DebugWindow).FIREBASE_APPCHECK_DEBUG_TOKEN = 'devtools-token';
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '6LeREAL_SITE_KEY');
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_DEBUG_TOKEN', 'env-token');
+
+    await import('../../lib/firebase');
+    await waitForAppCheckCall();
+
+    expect((window as DebugWindow).FIREBASE_APPCHECK_DEBUG_TOKEN).toBe('devtools-token');
+  });
+
+  it('does not install a debug token when env var is unset', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '6LeREAL_SITE_KEY');
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_DEBUG_TOKEN', '');
+
+    await import('../../lib/firebase');
+    await waitForAppCheckCall();
+
+    expect((window as DebugWindow).FIREBASE_APPCHECK_DEBUG_TOKEN).toBeUndefined();
+  });
+
+  it('swallows initializeAppCheck errors so module load never fails', async () => {
+    vi.stubEnv('VITE_FIREBASE_APPCHECK_SITE_KEY', '6LeREAL_SITE_KEY');
+    mockInitializeAppCheck.mockImplementationOnce(() => {
+      throw new Error('reCAPTCHA failed to load (network/AdBlock)');
+    });
+
+    await expect(import('../../lib/firebase')).resolves.toBeDefined();
+    await waitForAppCheckCall();
+  });
+});
+
+describe('Firestore emulator hookup', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mockConnectFirestoreEmulator.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('connects to the Firestore emulator when the dev flag is set', async () => {
+    vi.stubEnv('VITE_FIREBASE_FUNCTIONS_EMULATOR', 'true');
+    await import('../../lib/firebase');
+    expect(mockConnectFirestoreEmulator).toHaveBeenCalledTimes(1);
+    expect(mockConnectFirestoreEmulator).toHaveBeenCalledWith(
+      expect.anything(),
+      '127.0.0.1',
+      8080
+    );
+  });
+
+  it('does not connect when the flag is unset', async () => {
+    vi.stubEnv('VITE_FIREBASE_FUNCTIONS_EMULATOR', '');
+    await import('../../lib/firebase');
+    expect(mockConnectFirestoreEmulator).not.toHaveBeenCalled();
+  });
+
+  it('does not connect when the flag is anything other than "true"', async () => {
+    vi.stubEnv('VITE_FIREBASE_FUNCTIONS_EMULATOR', 'false');
+    await import('../../lib/firebase');
+    expect(mockConnectFirestoreEmulator).not.toHaveBeenCalled();
+  });
+
+  it('swallows errors from connectFirestoreEmulator (e.g. double-connect on HMR reload)', async () => {
+    vi.stubEnv('VITE_FIREBASE_FUNCTIONS_EMULATOR', 'true');
+    mockConnectFirestoreEmulator.mockImplementationOnce(() => {
+      throw new Error('Firestore emulator already connected');
+    });
+    // Module init must not throw even when the underlying SDK call rejects.
+    await expect(import('../../lib/firebase')).resolves.toBeDefined();
   });
 });

@@ -11,7 +11,7 @@ import {
   updateProfile,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, doc, setDoc, getDoc, collection, query, where, orderBy, limit, onSnapshot, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Analytics } from 'firebase/analytics';
 import { BestScore } from '../types';
 
@@ -26,8 +26,84 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// App Check setup. The Cloud Function `getHint` enforces App Check, so the
+// browser must obtain a token before calling it. Set
+// `VITE_FIREBASE_APPCHECK_SITE_KEY` at build time (see `.env.example` and
+// deploy workflow). If the site key is missing, initialization is skipped and
+// cloud hint calls fail with `unauthenticated`; the client falls back to
+// deterministic hints. Initialized before getAuth/getFirestore so any future
+// App-Check-enforced services (Firestore, Storage) receive tokens from the
+// first request.
+let appCheckInitPromise: Promise<void> | null = null;
+
+// The Firebase App Check SDK looks for a debug token at this exact global
+// path before initialization. Setting `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`
+// in a local `.env.local` lets dev builds satisfy enforcement on `getHint`
+// without a real reCAPTCHA token. Register the token in Firebase Console →
+// App Check → Apps → Manage debug tokens.
+// See https://firebase.google.com/docs/app-check/web/debug-provider
+const installAppCheckDebugToken = () => {
+  if (!import.meta.env.DEV) return;
+  if (typeof window === 'undefined') return;
+  const debugToken = (import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN ?? '').trim();
+  if (!debugToken) return;
+  const target = window as Window & { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean };
+  // Don't overwrite a token the developer already injected via DevTools.
+  if (target.FIREBASE_APPCHECK_DEBUG_TOKEN) return;
+  target.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+};
+
+const initAppCheck = () => {
+  if (typeof window === 'undefined') return;
+  if (appCheckInitPromise) return;
+
+  appCheckInitPromise = (async () => {
+    const siteKey = (import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY ?? '').trim();
+    const looksLikePlaceholder = /^YOUR_[A-Z0-9_]+$/.test(siteKey);
+    if (!siteKey || looksLikePlaceholder) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          'App Check not initialized: set VITE_FIREBASE_APPCHECK_SITE_KEY to your reCAPTCHA v3 site key at build time (public key, not the secret). getHint will return unauthenticated and the client will fall back to deterministic hints.'
+        );
+      }
+      return;
+    }
+
+    installAppCheckDebugToken();
+
+    try {
+      const { initializeAppCheck, ReCaptchaV3Provider } = await import('firebase/app-check');
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch (error) {
+      console.warn('Failed to initialize Firebase App Check', error);
+    }
+  })();
+};
+
+initAppCheck();
+
 export const auth = getAuth(app);
 export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID);
+
+// `npm run dev:local` boots both the Functions and Firestore emulators against
+// the `demo-matchbox` project and sets VITE_FIREBASE_FUNCTIONS_EMULATOR=true.
+// Without this hookup, leaderboard/profile reads still hit production Firestore
+// while only hint calls use the emulator — leaking dev writes into prod.
+if (import.meta.env.DEV && import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR === 'true') {
+  try {
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  } catch (error) {
+    // connectFirestoreEmulator throws if called twice on the same instance
+    // (e.g. across HMR reloads). Safe to ignore.
+    if (import.meta.env.DEV) {
+      console.warn('Firestore emulator hookup skipped (already connected?)', error);
+    }
+  }
+}
 
 // Initialize Analytics lazily for speed optimization
 let analyticsInstance: Analytics | null = null;

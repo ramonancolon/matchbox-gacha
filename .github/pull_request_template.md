@@ -1,6 +1,6 @@
 ## Summary
-- What does this PR change?
-- Why is this needed?
+- What changed?
+- Why was this change needed?
 
 ## Type Of Change
 - [ ] New feature
@@ -14,12 +14,14 @@
 - [ ] I ran `npm run test` locally and it passed.
 - [ ] I ran `npm run lint` locally and it passed.
 - [ ] I ran `npm run build` locally and it passed.
+- [ ] I considered whether `npm audit --audit-level=high --omit=dev` is relevant for this PR.
 
 ## Test Evidence
 Include the relevant output or a short summary of:
 - `npm run test`
 - `npm run lint`
 - `npm run build`
+- `npm audit --audit-level=high --omit=dev` when dependencies or deploy workflow changed
 
 ## Feature Checklist (Required For New Features)
 - [ ] This PR includes test coverage for the new feature.
@@ -31,4 +33,5 @@ Attach screenshots or a short recording for visual changes.
 
 ## Notes For Reviewers
 - Areas that need extra attention
-- Known limitations or follow-up tasks
+- Known limitations
+- Follow-up tasks, if any

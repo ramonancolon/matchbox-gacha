@@ -25,7 +25,7 @@ Key features:
 ## Clone and Run
 
 ### Prerequisites
-- Node.js v18+
+- Node.js **20** (matches the Cloud Functions runtime; `.nvmrc` is checked in — run `nvm use` or `fnm use` to switch)
 - npm
 
 ### Steps
@@ -46,24 +46,83 @@ Key features:
    cp .env.example .env
    ```
    Open `.env` and fill in the required values. See `.env.example` for descriptions and links to where each key comes from:
-   - `VITE_GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com), required only for Gemini-powered cloud hints
    - `VITE_FIREBASE_*` — from your [Firebase Console](https://console.firebase.google.com) project settings
+   - Gemini hints use the **`getHint` Cloud Function**; configure `GEMINI_API_KEY` as a Functions secret (see **Deploying `getHint`** below), not in `.env`.
 
-4. **Start the dev server**
+4. **Start local dev (recommended: cloud-backed)**
    ```bash
-   npm run dev
+   npm run dev:cloud
    ```
-   The app runs at `http://localhost:3000`.
+   - Starts Vite and hits your deployed Firebase services (same path used in production for callable hints).
+   - Requires App Check to be configured for local development (see debug token note below).
+
+   Optional alternatives:
+   ```bash
+   npm run dev          # auto-picks local emulators if Java exists, otherwise dev:cloud
+   npm run dev:local    # requires Java; runs Functions + Firestore emulators
+   ```
 
 ### AI Hint Runtime Notes
 
-The hint system is intentionally layered so the feature still works when cloud AI is unavailable or `VITE_GEMINI_API_KEY` is not configured:
+The hint system is intentionally layered, but the order depends on how the app is launched:
 
-1. Try a small Gemini model chain first
-2. Fall back to browser-local Llama 3.2 1B via WebLLM/WebGPU
-3. Fall back again to a deterministic scripted hint
+- **Normal browser tab**: call the Firebase callable **`getHint`**, which runs the Gemini model chain **on the server** (the Gemini API key is **not** in the web bundle). If the cloud call fails or returns no legal move, fall back to a deterministic scripted hint. The browser-local LLM is never loaded in this mode.
+- **Installed web app / Chromium PWA**: while the local **Llama 3.2 1B** model (WebLLM/WebGPU) is still downloading or not yet reported ready, hints use **`getHint`** (Gemini on the server) immediately, then the deterministic scripted hint if needed. After the local engine finishes its first-time setup, hints try **local Llama first**, then **`getHint`**, then deterministic logic.
 
-This means the game still provides hints even if Gemini is unavailable, but the browser-local fallback depends on WebGPU support and may require a large first-time model download on the device that triggers it.
+The local model is limited to installed-app contexts because it can require a large first-time model download. Install progress is shown as an inline card **below the Hall of Fame** in the sidebars (not a blocking overlay). Initialization continues in the background; you never wait on WebLLM for a hint while the model is still loading.
+
+### Deploying `getHint` (Gemini on the server)
+
+The Gemini API key is stored as a **Firebase Functions secret**, not in `VITE_*` env vars.
+
+1. Install [Firebase CLI](https://firebase.google.com/docs/cli) and log in (`firebase login`).
+2. Set the default project in `.firebaserc` (or run `firebase use <your-project-id>`).
+3. Create the secret (you will paste the key when prompted):
+
+   ```bash
+   firebase functions:secrets:set GEMINI_API_KEY
+   ```
+
+4. Install dependencies and build functions, then deploy:
+
+   ```bash
+   cd functions
+   npm ci
+   npm run build
+   cd ..
+   firebase deploy --only functions:getHint
+   ```
+
+5. Enable **Firebase App Check** for your web app and enforce it for callable requests:
+
+   - In Firebase Console: **Build → App Check**.
+   - Register your web app with a provider (typically reCAPTCHA v3).
+   - Turn on **enforcement** for Cloud Functions (or at minimum for callable functions).
+
+6. Add your **reCAPTCHA v3 site key** (public) at **build time**:
+
+   - **Local / preview:** in `.env` as `VITE_FIREBASE_APPCHECK_SITE_KEY` (see `.env.example`).
+   - **Production (CI):** add the same value as the GitHub Actions secret `VITE_FIREBASE_APPCHECK_SITE_KEY` so the deploy workflow can inject it when it runs `npm run build` (see `.github/workflows/deploy.yml`).
+
+   Do not put the reCAPTCHA **secret** in `VITE_*` variables; that stays in Firebase App Check only.
+
+`getHint` enforces App Check and applies Firestore-backed distributed throttling to reduce abuse across function instances. If App Check is not configured, callable requests will fail and hints will fall back to deterministic logic.
+
+7. (Recommended) Enable Firestore TTL cleanup for rate-limit documents:
+   - Collection: `hintRateLimits`
+   - TTL field: `expiresAt`
+
+The callable is deployed to **`us-central1`** by default. Override the client region with `VITE_FIREBASE_FUNCTIONS_REGION` if you deploy elsewhere.
+
+**Cloud-backed local dev (recommended):** use `npm run dev:cloud` for day-to-day frontend work against deployed Firebase services.
+
+**Local emulator (optional):** use `npm run dev:local` (Java required) to run Functions + Firestore emulators and keep leaderboard/profile data isolated from production.
+
+**App Check debug tokens (local dev):** App Check enforcement blocks `getHint` from devices without a real App Check token. For `npm run dev:cloud`, register a debug token in Firebase Console under **Build → App Check → Apps → Manage debug tokens** and set `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` in local env (`.env.local` recommended). See Firebase's [debug provider guide](https://firebase.google.com/docs/app-check/web/debug-provider).
+
+### Installed Web App Notes
+
+Production builds include a web app manifest and a minimal service worker so Chromium-based browsers can install Matchbox Gacha as a standalone app. Service worker registration only runs in production; local `npm run dev` sessions are not affected.
 
 ---
 
@@ -201,7 +260,7 @@ Do not create new top-level folders under `src/assets/` without updating this ta
 
    <img src={myIcon} alt="..." />
    ```
-3. That's it. On build, Vite emits `dist/assets/my-icon-<hash>.svg` and the deploy workflow uploads it to `https://matchbox-gacha.b-cdn.net/assets/my-icon-<hash>.svg` automatically. The subfolder structure in `src/assets/` is for source organization only. At build time everything is flattened into `dist/assets/` with content hashes, so filenames in `src/assets/` must remain unique across subfolders.
+3. That's it. On build, Vite emits `dist/assets/my-icon-<hash>.svg` and the deploy workflow uploads it to your configured `VITE_CDN_URL` (for example `https://matchboxgacha.b-cdn.net/assets/my-icon-<hash>.svg`). The subfolder structure in `src/assets/` is for source organization only. At build time everything is flattened into `dist/assets/` with content hashes, so filenames in `src/assets/` must remain unique across subfolders.
 
 ### Favicons and `index.html`
 
@@ -237,11 +296,14 @@ For regular UI imagery (icons, theme art, in-app images), use `src/assets/`.
 
 Pushes to `main` trigger `.github/workflows/deploy.yml`, which:
 
-1. Runs a high-severity production dependency audit with `npm audit --audit-level=high --omit=dev`.
-2. Runs tests and lint.
-3. Builds the app with `VITE_CDN_URL` set, so all asset URLs are rewritten to the CDN.
-4. Uploads every file in `dist/assets/` to Bunny CDN via the Bunny Storage API.
-5. Rsyncs the `dist/` folder (including `index.html` and fixed-origin `public/` files) to DreamHost, which serves the HTML entry point from the app origin.
+1. Runs a high-severity production dependency audit for root dependencies.
+2. Installs, audits, lints, and builds the `functions/` package (so `getHint` changes are validated in CI).
+3. Runs a Firestore Emulator integration test for the distributed limiter (`allowDistributedRequest`) using a `demo-*` Firebase project ID so the step works in fork PRs without secrets.
+4. Runs root tests and lint.
+5. Builds the app with `VITE_CDN_URL` set, so all asset URLs are rewritten to the CDN.
+6. Deploys `functions:getHint` automatically to the configured Firebase project.
+7. Uploads every file in `dist/assets/` to Bunny CDN via the Bunny Storage API.
+8. Rsyncs the `dist/` folder (including `index.html` and fixed-origin `public/` files) to DreamHost, which serves the HTML entry point from the app origin.
 
 This split is intentional: HTML is served from the origin for a fast first byte, while hashed static assets are served from the Bunny CDN edge.
 
@@ -251,15 +313,20 @@ Add these under **Settings → Secrets and variables → Actions**:
 
 | Secret                          | Value                                                              |
 | ------------------------------- | ------------------------------------------------------------------ |
-| `VITE_CDN_URL`                  | `https://matchbox-gacha.b-cdn.net`                                 |
+| `VITE_CDN_URL`                  | Your Bunny pull-zone URL (for example `https://matchboxgacha.b-cdn.net`) |
 | `BUNNY_STORAGE_ZONE`            | Bunny storage zone name (e.g. `matchbox-gacha`)                    |
 | `BUNNY_PASSWORD`                | Storage zone password (Bunny → Storage Zones → FTP & API Access)   |
 | `DREAMHOST_SSH_KEY`             | Private SSH key for the deploy user                                |
 | `DREAMHOST_HOST`                | DreamHost server hostname                                          |
 | `DREAMHOST_USER`                | SSH username                                                       |
 | `DREAMHOST_PATH`                | Absolute path on DreamHost where `dist/` is rsynced                |
-| `VITE_GEMINI_API_KEY`           | From Google AI Studio; optional for fallback-only hints             |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Full JSON for a Firebase service account with Cloud Functions deploy permissions |
 | `VITE_FIREBASE_*` (all eight)   | From Firebase Console → Project Settings                           |
+| `VITE_FIREBASE_APPCHECK_SITE_KEY` | reCAPTCHA v3 site key for Firebase App Check                     |
+
+Gemini hints are served by the **`getHint` Cloud Function**; configure `GEMINI_API_KEY` with `firebase functions:secrets:set` (see **Deploying `getHint`**). Do **not** add `VITE_GEMINI_API_KEY` to GitHub Actions — it is no longer used by the web build.
+
+The limiter integration test runs in CI through the Firestore emulator and does not require deploy secrets. It uses a `demo-*` Firebase project ID intentionally for offline emulator mode.
 
 > The workflow is configured for a storage zone in **Falkenstein (DE)**, which uses the default `storage.bunnycdn.com` host. If you migrate the zone to another region, update the host in `.github/workflows/deploy.yml` (e.g. `ny.storage`, `la.storage`, `uk.storage`, `sg.storage`, `syd.storage`).
 
@@ -273,5 +340,5 @@ Add these under **Settings → Secrets and variables → Actions**:
 
 - `.env` is gitignored. Never commit real API keys.
 - The `GamePersistenceService` interface abstracts score storage. If you need to change persistence behavior, implement the interface instead of scattering `localStorage` calls.
-- The AI hint flow is intentionally layered: Gemini first, browser-local Llama second, deterministic logic last.
+- The AI hint flow is intentionally mode-aware: normal browser tabs use server-side Gemini (`getHint`), then deterministic logic only. Installed web apps use Gemini until the local model is ready, then browser-local Llama first, then `getHint`, then deterministic logic.
 - Regular app image assets belong in `src/assets/`, organized by role (`ui/`, `themes/`, etc.). Only fixed-origin crawler/security files belong in `public/`. See the Assets section above.

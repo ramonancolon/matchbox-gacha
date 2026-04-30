@@ -1,0 +1,22 @@
+{
+  "name": "matchbox-gacha-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test:integration:rate-limit": "node ./scripts/distributedRateLimit.integration.cjs"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.2"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.16.0",
+    "typescript": "~5.8.2"
+  }
+}

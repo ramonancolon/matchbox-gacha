@@ -9,15 +9,19 @@ import { RotateCcw, Settings, LogIn, User as UserIcon, Box, Sparkles, Volume2, V
 import { GameBoard } from './components/GameBoard';
 import { GameOverModal } from './components/GameOverModal';
 import { Leaderboard } from './components/Leaderboard';
+import { LocalLlmInstallModule } from './components/LocalLlmInstallModule';
 import { SignInModal } from './components/SignInModal';
 import { TutorialModal } from './components/TutorialModal';
 import { GameSettings, BestScore } from './types';
+import { APP_VERSION } from './constants';
 import { cn } from './lib/utils';
 import { auth, logOut, syncUserProfile, submitScore, updateUserBest, logGameEvent } from './lib/firebase';
 import { soundManager } from './lib/sounds';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { useMatchingGame } from './hooks/useMatchingGame';
 import { gamePersistenceService } from './services/gamePersistenceService';
+import { getLocalLlmInstallStatus, subscribeLocalLlmInstallStatus, warmLocalLlmEngine } from './services/localLlmService';
+import { isInstalledWebApp } from './lib/installedWebApp';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,6 +34,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [localLlmInstall, setLocalLlmInstall] = useState(getLocalLlmInstallStatus());
   const {
     cards,
     flippedIndices,
@@ -75,6 +80,16 @@ export default function App() {
       window.removeEventListener('touchstart', unlock);
       window.removeEventListener('click', unlock);
     };
+  }, []);
+
+  useEffect(() => {
+    return subscribeLocalLlmInstallStatus(setLocalLlmInstall);
+  }, []);
+
+  useEffect(() => {
+    if (isInstalledWebApp()) {
+      warmLocalLlmEngine();
+    }
   }, []);
 
   // Tutorial Flow
@@ -274,8 +289,9 @@ export default function App() {
         {/* Left Sidebar Content (Desktop & Tablet) */}
         <aside className="flex flex-col gap-6 order-2 md:col-start-1 md:row-start-1 xl:row-span-12" aria-label="Player stats and settings">
           {/* A. Hall of Fame (Top of Left Sidebar for Tablet/Large Tablet) */}
-          <div className="xl:hidden">
+          <div className="xl:hidden flex flex-col gap-6">
             <Leaderboard mode={settings.gridSize} />
+            <LocalLlmInstallModule status={localLlmInstall} />
           </div>
 
           {/* B. Join Matchbox Gacha */}
@@ -408,8 +424,13 @@ export default function App() {
         {/* Right Sidebar (Desktop only - XL breakpoint) */}
         <aside className="hidden xl:flex flex-col gap-6 order-3 xl:col-start-3 xl:row-start-1 xl:row-span-12">
           <Leaderboard mode={settings.gridSize} />
+          <LocalLlmInstallModule status={localLlmInstall} />
         </aside>
       </main>
+
+      <footer className="py-3 px-4 text-center text-[10px] text-text-muted/70 font-mono tracking-wide" role="contentinfo">
+        v{APP_VERSION}
+      </footer>
 
       <SignInModal
         isOpen={showSignIn}
@@ -432,6 +453,7 @@ export default function App() {
           await submitScore('guest', name, null, moves, time, settings.gridSize, settings.theme);
         }}
       />
+
     </div>
   );
 }

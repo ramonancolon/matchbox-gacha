@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Matchbox Gacha",
+  "short_name": "Matchbox",
+  "description": "Memory match game with AI hints and leaderboards.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

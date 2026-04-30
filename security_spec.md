@@ -13,14 +13,16 @@ This document describes the security expectations for the leaderboard and profil
 
 ## Client-Side Boundary
 
-This app is a static React deployment, so browser-exposed `VITE_*` values should be treated as public configuration, not secrets. Firebase API keys and the Gemini key can appear in the client bundle. The security model must therefore rely on:
+This app is a static React deployment, so browser-exposed `VITE_*` values should be treated as public configuration, not secrets. Firebase web API keys can appear in the client bundle by design. The Gemini API key must **not** be exposed to the browser; cloud hints are routed through the Firebase callable `getHint`, which reads `GEMINI_API_KEY` from Functions secrets. The security model therefore relies on:
 
 1. Firestore security rules for leaderboard and profile authorization.
 2. Firebase authorized domains for auth flows.
-3. Key restrictions, monitoring, and rotation for provider keys.
-4. GitHub Actions secrets only for deploy credentials and CI-only configuration.
+3. Server-side Gemini calls through `getHint`, with request validation before model calls.
+4. Firebase App Check enforcement on `getHint`, plus Firestore-backed distributed throttling to reduce abuse.
+5. Key restrictions, monitoring, quotas, and rotation for provider keys.
+6. GitHub Actions secrets only for deploy credentials and CI-only configuration.
 
-If the AI hint feature needs stronger key protection later, the Gemini call should move behind a server-side proxy with request validation and rate limiting.
+`getHint` currently enforces App Check and distributed throttling backed by Firestore counters. Additional hardening can still include authenticated-only access and stronger global limits (for example, Redis or provider-level quotas) at higher traffic levels.
 
 ## Operational Hardening
 
@@ -28,6 +30,7 @@ If the AI hint feature needs stronger key protection later, the Gemini call shou
 2. Deploy credentials are stored as GitHub Actions secrets and are not required for pull-request CI from forks.
 3. `public/security.txt` and `public/.well-known/security.txt` provide a fixed-origin disclosure path for security reports.
 4. Static assets are split intentionally: hashed app assets go through Vite and Bunny CDN, while crawler/security files stay at stable origin URLs under `public/`.
+5. CI runs a Firestore Emulator integration test for distributed throttling (`allowDistributedRequest`) using a `demo-*` project ID to verify cross-process limiter behavior without production credentials.
 
 ## Denial Tests
 

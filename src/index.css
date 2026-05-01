@@ -27,10 +27,12 @@
   --color-bg-theme: #0B1220;
   --color-surface: #131A2A;
   --color-border-theme: #2A3346;
-  --color-primary-theme: #818CF8;
-  --color-primary-light: #1E2540;
+  /* Brighter accent pair to improve contrast for small primary text. */
+  --color-primary-theme: #A5B4FC;
+  --color-primary-light: #202B45;
   --color-text-main: #E2E8F0;
-  --color-text-muted: #94A3B8;
+  /* Increased contrast for small labels/icons on dark surfaces. */
+  --color-text-muted: #C6D0E1;
   --color-success-theme: #34D399;
 }
 

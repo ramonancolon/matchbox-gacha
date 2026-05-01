@@ -117,7 +117,7 @@ export function Card({ card, onClick, disabled, isActive }: CardProps) {
           style={{ backfaceVisibility: 'hidden' }}
         >
           <div className={cn(
-            "text-border-theme font-black text-2xl opacity-50 select-none",
+            "text-text-muted dark:text-slate-300 font-black text-2xl opacity-90 dark:opacity-100 select-none",
             isActive && "text-primary-theme opacity-100 animate-pulse"
           )}>?</div>
         </div>

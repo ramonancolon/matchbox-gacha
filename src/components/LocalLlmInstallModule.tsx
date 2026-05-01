@@ -38,7 +38,7 @@ export function LocalLlmInstallModule({ status }: LocalLlmInstallModuleProps) {
       <p className="text-[11px] text-text-muted font-medium" role="status" aria-live="polite">
         {status.text || 'Preparing download...'}
       </p>
-      <p className="text-[10px] text-text-muted/70 mt-1.5">{pct}%</p>
+      <p className="text-[10px] text-text-muted mt-1.5">{pct}%</p>
     </section>
   );
 }

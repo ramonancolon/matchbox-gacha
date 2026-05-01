@@ -1,8 +1,34 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Anchor,
+  Bell,
+  Bomb,
+  Bug,
+  Camera,
+  Cloud,
+  Coffee,
+  Compass,
+  Crown,
+  Flame,
+  FlaskConical,
+  Ghost,
+  Gift,
+  Heart,
+  Map as MapIcon,
+  Moon,
+  Music,
+  Rocket,
+  Star,
+  Sun,
+  Target,
+  Trophy,
+  Umbrella,
+  Zap,
+} from 'lucide-react';
 import { motion } from 'motion/react';
-import * as Icons from 'lucide-react';
-import { CardData } from '../types';
-import { cn } from '../lib/utils';
 import { FRUIT_IMAGES } from '../assets/themes/fruits';
+import { cn } from '../lib/utils';
+import { CardData } from '../types';
 
 interface CardProps {
   card: CardData;
@@ -12,10 +38,36 @@ interface CardProps {
   key?: string | number;
 }
 
+const ICON_COMPONENTS: Record<string, LucideIcon> = {
+  Heart,
+  Star,
+  Moon,
+  Sun,
+  Cloud,
+  Bug,
+  Gift,
+  Coffee,
+  Anchor,
+  Music,
+  Camera,
+  Rocket,
+  Zap,
+  Bell,
+  Target,
+  Trophy,
+  Ghost,
+  Map: MapIcon,
+  Compass,
+  Umbrella,
+  Flame,
+  FlaskConical,
+  Bomb,
+  Crown,
+};
+
 export function Card({ card, onClick, disabled, isActive }: CardProps) {
   const fruitSrc = FRUIT_IMAGES[card.iconName];
-  const iconKey = card.iconName as keyof typeof Icons;
-  const IconComponent = !fruitSrc && iconKey in Icons ? Icons[iconKey] : null;
+  const IconComponent = !fruitSrc ? ICON_COMPONENTS[card.iconName] ?? null : null;
 
   return (
     <button 

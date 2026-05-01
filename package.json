@@ -1,10 +1,13 @@
 {
   "name": "matchbox-gacha",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "node scripts/dev.mjs",
+    "predev:local": "npm --prefix functions ci",
+    "dev:local": "concurrently -k -n EMU,WEB \"npm --prefix functions exec -- firebase emulators:start --project demo-matchbox --only functions,firestore\" \"cross-env VITE_FIREBASE_FUNCTIONS_EMULATOR=true vite --port=3000 --host=0.0.0.0\"",
+    "dev:cloud": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -14,7 +17,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
+    "@mlc-ai/web-llm": "^0.2.82",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
@@ -37,6 +40,8 @@
     "@types/node": "^22.14.0",
     "@vitest/browser": "^4.1.4",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "happy-dom": "^20.9.0",
     "jsdom": "^29.0.2",
     "tailwindcss": "^4.1.14",

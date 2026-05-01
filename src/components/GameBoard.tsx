@@ -13,6 +13,8 @@ interface GameBoardProps {
 export function GameBoard({ cards, gridSize, flippedCount, hintIndex, onCardClick }: GameBoardProps) {
   return (
     <div
+      role="group"
+      aria-label={`Memory board ${gridSize} by ${gridSize}`}
       style={{
         gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`
       }}

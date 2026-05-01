@@ -1,121 +1,222 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { CardData } from "../types";
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+import "../lib/firebase";
+import { getApp } from "firebase/app";
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
+import { isInstalledWebApp } from "../lib/installedWebApp";
+import type { CardData } from "../types";
+import { getLocalLlmHint } from "./localLlmService";
 
 export interface HintResponse {
   index: number;
   message: string;
 }
 
-// Models tried in order — primary first, then fallbacks on overload/error.
-const MODEL_FALLBACK_CHAIN = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-] as const;
+// Hint order:
+// - Installed PWA: Gemini (server) while the local model is still downloading; once
+//   ready, local Llama first, then Gemini, then deterministic.
+// - Non-installed browser: Gemini (server) only, then deterministic — never local LLM.
 
-const shouldTryNextModel = (error: unknown): boolean => {
-  if (typeof error === 'object' && error !== null) {
-    const msg = (error as { message?: string }).message ?? '';
-    const status = (error as { status?: number }).status;
-    // Retry on: overload, rate-limit, or model not found (wrong name / not in API version)
-    return (
-      status === 503 ||
-      status === 429 ||
-      status === 404 ||
-      /overloaded|quota|rate.?limit|unavailable|not.found/i.test(msg)
-    );
+const FUNCTIONS_REGION = import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION ?? "us-central1";
+
+interface CloudHintRequest {
+  boardSnapshot: Array<{ index: number; iconName: string }>;
+  flippedIndices: number[];
+  gridSize: number;
+  cardCount: number;
+}
+
+type CloudHintResult =
+  | { ok: true; index: number; message: string }
+  | { ok: false };
+
+// Per-request timeout aligned with server-side model timeout budget.
+const CLOUD_HINT_TIMEOUT_MS = 30000;
+
+// Errors that mean "do not bother retrying for the rest of this session" — the
+// callable is not deployed, the secret is missing, or the caller is unauthorized.
+// We remember this and skip cloud hints to avoid burning user time on every
+// hint click for the same dead endpoint.
+const NON_RETRYABLE_CODES = new Set([
+  "functions/not-found",
+  "functions/failed-precondition",
+  "functions/permission-denied",
+  "functions/unauthenticated",
+]);
+let cloudHintsDisabledForSession = false;
+
+let hintCallable:
+  | ReturnType<typeof httpsCallable<CloudHintRequest, CloudHintResult>>
+  | null = null;
+
+const getHintCallable = () => {
+  if (!hintCallable) {
+    const functions = getFunctions(getApp(), FUNCTIONS_REGION);
+    if (import.meta.env.DEV && import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR === "true") {
+      connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+    }
+    hintCallable = httpsCallable<CloudHintRequest, CloudHintResult>(functions, "getHint");
+  }
+  return hintCallable;
+};
+
+const isRetryableCloudError = (error: unknown): boolean => {
+  if (typeof error === "object" && error !== null) {
+    const code = (error as { code?: string }).code;
+    if (code === "functions/unavailable" || code === "functions/deadline-exceeded") return true;
+    const msg = String((error as { message?: string }).message ?? "");
+    return /network|fetch|failed to fetch|timeout/i.test(msg);
   }
   return false;
 };
 
-const buildRequest = (model: string, prompt: string, systemInstruction: string) => ({
-  model,
-  contents: prompt,
-  config: {
-    systemInstruction,
-    responseMimeType: "application/json",
-    responseSchema: {
-      type: Type.OBJECT,
-      properties: {
-        index: { type: Type.NUMBER },
-        message: { type: Type.STRING }
+// Browser CORS preflight failures against the callable URL usually mean a
+// deployment/config mismatch (wrong project, wrong region, or function missing),
+// not a transient outage. Disable cloud hints for this session so we do not
+// hammer a dead endpoint on every click.
+const isMisconfiguredCloudEndpointError = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) return false;
+  const msg = String((error as { message?: string }).message ?? "");
+  return /blocked by cors policy|response to preflight request|access-control-allow-origin/i.test(
+    msg
+  );
+};
+
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const err = new Error(`${label} timed out after ${ms}ms`);
+      err.name = "TimeoutError";
+      reject(err);
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
       },
-      required: ["index", "message"]
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+
+async function getCloudHint(
+  cards: CardData[],
+  flippedIndices: number[],
+  gridSize: number
+): Promise<HintResponse | null> {
+  if (cloudHintsDisabledForSession) return null;
+
+  try {
+    const fn = getHintCallable();
+    const result = await withTimeout(
+      fn({
+        boardSnapshot: buildBoardSnapshot(cards),
+        flippedIndices: [...flippedIndices],
+        gridSize,
+        cardCount: cards.length,
+      }),
+      CLOUD_HINT_TIMEOUT_MS,
+      "cloud hint"
+    );
+
+    const data = result.data;
+    if (data?.ok === true) {
+      return validateHint({ index: data.index, message: data.message }, cards, flippedIndices);
     }
+    return null;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code && NON_RETRYABLE_CODES.has(code)) {
+      cloudHintsDisabledForSession = true;
+      console.warn(`Cloud hint disabled for session (${code}):`, error);
+    } else if (isMisconfiguredCloudEndpointError(error)) {
+      cloudHintsDisabledForSession = true;
+      console.warn(
+        `Cloud hint disabled for session (callable endpoint misconfigured: check region/project deployment):`,
+        error
+      );
+    } else if (isRetryableCloudError(error)) {
+      console.warn("Cloud hint unavailable:", error);
+    } else {
+      console.warn("Cloud hint failed:", error);
+    }
+    return null;
   }
-});
+}
+
+/** Test/debug hook: re-enable cloud hints after they were disabled by a non-retryable error. */
+export function resetCloudHintCircuitBreaker() {
+  cloudHintsDisabledForSession = false;
+}
+
+// Reject any hint — cloud or local — that points outside the board, at an
+// already-matched card, or at a currently-flipped card. Centralizing this
+// means Gemini, Llama, and the deterministic path all enforce the same
+// "must be a legal move" contract for the UI.
+export function validateHint(
+  raw: unknown,
+  cards: CardData[],
+  flippedIndices: readonly number[]
+): HintResponse | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const index = Number(obj.index);
+  if (!Number.isInteger(index) || index < 0 || index >= cards.length) return null;
+  if (cards[index].isMatched) return null;
+  if (flippedIndices.includes(index)) return null;
+  const rawMessage = typeof obj.message === "string" ? obj.message.trim() : "";
+  return {
+    index,
+    message: rawMessage ? rawMessage.slice(0, 200) : "Give this one a try!",
+  };
+}
+
+const buildBoardSnapshot = (cards: CardData[]) => {
+  const snapshot: Array<{ index: number; iconName: string }> = [];
+  for (let i = 0; i < cards.length; i++) {
+    if (!cards[i].isMatched) snapshot.push({ index: i, iconName: cards[i].iconName });
+  }
+  return snapshot;
+};
 
 export async function getNextMoveHint(
   cards: CardData[],
   flippedIndices: number[],
   gridSize: number
 ): Promise<HintResponse | null> {
-  const boardState = cards.map((c, i) => ({
-    index: i,
-    iconName: c.iconName,
-    isMatched: c.isMatched
-  }));
-
-  const systemInstruction = `You are a helpful AI assistant for a Memory Match game. 
-  Your goal is to suggest the next move to the user.
-  The user is playing on a ${gridSize}x${gridSize} grid.
-  Indices go from 0 to ${cards.length - 1}.
-  If one card is already flipped, suggest its matching pair if you know it from the provided cards.
-  If no cards are flipped, suggest a potential pair.
-  Be encouraging and concise.
-  Return the response in JSON format with 'index' (the card index to flip) and 'message' (a short hint message).`;
-
-  const prompt = `Current Board State: ${JSON.stringify(boardState)}
-  Currently Flipped Indices: ${JSON.stringify(flippedIndices)}`;
-
-  for (const model of MODEL_FALLBACK_CHAIN) {
-    try {
-      const response = await ai.models.generateContent(
-        buildRequest(model, prompt, systemInstruction)
-      );
-
-      if (response.text) {
-        return JSON.parse(response.text) as HintResponse;
-      }
-    } catch (error) {
-      if (shouldTryNextModel(error)) {
-        console.warn(`Gemini model "${model}" unavailable — trying next fallback.`);
-        continue;
-      }
-      console.error(`Gemini Hint Error on model "${model}":`, error);
-      break;
-    }
+  if (isInstalledWebApp()) {
+    const localFirst = await getLocalLlmHint(cards, flippedIndices, gridSize);
+    if (localFirst) return localFirst;
   }
 
-  // All API models failed — use local deterministic hint so the feature
-  // never goes completely dark for the player.
-  return getLocalFallbackHint(cards, flippedIndices);
+  const cloudHint = await getCloudHint(cards, flippedIndices, gridSize);
+  if (cloudHint) return cloudHint;
+
+  return getDeterministicHint(cards, flippedIndices);
 }
 
-function getLocalFallbackHint(
+function getDeterministicHint(
   cards: CardData[],
   flippedIndices: number[]
 ): HintResponse | null {
-  const unmatched = cards
-    .map((c, i) => ({ ...c, index: i }))
-    .filter(c => !c.isMatched);
-
+  const flippedSet = new Set(flippedIndices);
+  const unmatched: Array<CardData & { index: number }> = [];
+  for (let i = 0; i < cards.length; i++) {
+    if (!cards[i].isMatched) unmatched.push({ ...cards[i], index: i });
+  }
   if (unmatched.length === 0) return null;
 
-  // If one card is already flipped, try to find its known pair among unmatched cards.
   if (flippedIndices.length === 1) {
     const flippedCard = cards[flippedIndices[0]];
     const pair = unmatched.find(
-      c => c.iconName === flippedCard.iconName && c.index !== flippedIndices[0]
+      (c) => c.iconName === flippedCard.iconName && c.index !== flippedIndices[0]
     );
     if (pair) {
       return { index: pair.index, message: "You're on the right track — try that one!" };
     }
   }
 
-  // Otherwise suggest a random unflipped, unmatched card.
-  const candidates = unmatched.filter(c => !flippedIndices.includes(c.index));
+  const candidates = unmatched.filter((c) => !flippedSet.has(c.index));
   if (candidates.length === 0) return null;
 
   const pick = candidates[Math.floor(Math.random() * candidates.length)];

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Github, Apple, Loader2, X, ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import { signInWithGoogle, signInWithApple, signInEmail, signUpEmail, sendPasswordReset, logGameEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import { useModalA11y } from '../hooks/useModalA11y';
 import googleLogo from '../assets/ui/google.svg';
 
 interface SignInModalProps {
@@ -51,15 +52,6 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
 
-  useEffect(() => {
-    if (!isOpen) {
-      setLoading(false);
-      setError(null);
-      setInfo(null);
-      setView('main');
-    }
-  }, [isOpen]);
-
   const handleClose = () => {
     setLoading(false);
     setError(null);
@@ -67,6 +59,21 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
     setView('main');
     onClose();
   };
+
+  // Reset transient state whenever the modal is hidden so a subsequent open
+  // starts clean. Focus + Escape handling live in useModalA11y.
+  useEffect(() => {
+    if (isOpen) return;
+    setLoading(false);
+    setError(null);
+    setInfo(null);
+    setView('main');
+  }, [isOpen]);
+
+  const { initialFocusRef: closeButtonRef, dialogRef } = useModalA11y<HTMLButtonElement>({
+    isOpen,
+    onClose: handleClose,
+  });
 
   const handleForgotPassword = async () => {
     setError(null);
@@ -143,31 +150,38 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
             onClick={handleClose}
           />
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signin-title"
+            aria-describedby="signin-desc"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             className="relative bg-surface rounded-[24px] shadow-2xl p-8 max-w-sm w-full border border-border-theme overflow-hidden"
           >
             <button 
+              ref={closeButtonRef}
               onClick={handleClose}
               className="absolute top-4 right-4 p-2 text-text-muted hover:text-text-main hover:bg-bg-theme rounded-full transition-colors"
+              aria-label="Close sign in dialog"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-text-main">Sign In Options</h2>
-              <p className="text-text-muted text-sm mt-1">Authenticate to save your progress</p>
+              <h2 id="signin-title" className="text-2xl font-bold text-text-main">Sign In Options</h2>
+              <p id="signin-desc" className="text-text-muted text-sm mt-1">Authenticate to save your progress</p>
             </div>
 
             {error && (
-              <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-xs font-medium text-center">
+              <div role="alert" className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-xs font-medium text-center">
                 {error}
               </div>
             )}
 
             {info && (
-              <div className="mb-6 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 text-xs font-medium text-center">
+              <div role="status" aria-live="polite" className="mb-6 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 text-xs font-medium text-center">
                 {info}
               </div>
             )}
@@ -178,6 +192,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   onClick={() => handleProviderSignIn('google')}
                   disabled={loading}
                   className="w-full py-3 px-4 bg-white hover:bg-gray-50 text-gray-900 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-3 shadow-sm border border-gray-200"
+                  aria-label="Continue with Google"
                 >
                   <img src={googleLogo} className="w-5 h-5" alt="Google" />
                   Continue with Google
@@ -187,6 +202,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   onClick={() => handleProviderSignIn('apple')}
                   disabled={loading}
                   className="w-full py-3 px-4 bg-black hover:bg-zinc-900 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-3 shadow-sm"
+                  aria-label="Sign in with Apple"
                 >
                   <svg viewBox="0 0 384 512" className="w-5 h-5 fill-current">
                     <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
@@ -207,6 +223,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   onClick={() => setView('email-signin')}
                   disabled={loading}
                   className="w-full py-3 px-4 bg-bg-theme hover:bg-surface text-text-main border border-border-theme rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-3"
+                  aria-label="Sign in with email"
                 >
                   <Mail className="w-5 h-5" />
                   Sign In with Email
@@ -290,6 +307,7 @@ export function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   type="submit"
                   disabled={loading}
                   className="w-full py-4 bg-primary-theme hover:bg-primary-theme/90 text-white rounded-xl font-bold text-sm shadow-lg shadow-primary-theme/20 transition-all flex items-center justify-center gap-2 mt-6"
+                  aria-label={view === 'email-signin' ? 'Submit email sign in form' : 'Submit email sign up form'}
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

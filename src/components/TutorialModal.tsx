@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Trophy, MousePointer2, X, ChevronRight, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { logGameEvent } from '../lib/firebase';
 
 interface TutorialModalProps {
@@ -48,6 +49,13 @@ export function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
     onClose();
   };
 
+  // Escape skips the tutorial, and focus starts on the primary action so
+  // keyboard users can advance without reaching for the mouse.
+  const { initialFocusRef: nextButtonRef, dialogRef } = useModalA11y<HTMLButtonElement>({
+    isOpen,
+    onClose: handleSkip,
+  });
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -60,6 +68,7 @@ export function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
             onClick={handleSkip}
           />
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="tutorial-title"
@@ -100,6 +109,7 @@ export function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
                 </button>
               )}
               <button
+                ref={nextButtonRef}
                 onClick={handleNext}
                 className="flex-1 py-3 bg-primary-theme hover:bg-primary-theme/90 text-white rounded-xl font-bold text-sm shadow-lg shadow-primary-theme/20 transition-all flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-theme focus-visible:ring-offset-2"
                 aria-label={step === steps.length - 1 ? "Finish tutorial and play now" : "Go to next step"}

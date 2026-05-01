@@ -1,3 +1,6 @@
+/** User-facing app semver; keep in sync with `package.json` (built from the same source). */
+export const APP_VERSION = __APP_VERSION__;
+
 export const EMOJIS = [
   '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
   '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔',

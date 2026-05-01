@@ -364,7 +364,7 @@ export default function App() {
           {/* B. Join Matchbox Gacha */}
           {!user && (
             <div className="bg-primary-light border border-primary-theme/20 rounded-xl p-5 flex flex-col gap-3 shadow-sm">
-              <h3 className="text-xs font-bold text-primary-theme uppercase tracking-wider">Join Matchbox Gacha</h3>
+              <h2 className="text-xs font-bold text-primary-theme uppercase tracking-wider">Join Matchbox Gacha</h2>
               <p className="text-[11px] font-medium text-text-muted leading-relaxed">Sign in to track your personal bests across devices and qualify for the global leaderboard.</p>
               <button 
                 onClick={() => setShowSignIn(true)}
@@ -377,7 +377,7 @@ export default function App() {
 
           {/* C. Your Best */}
           <div className="bg-surface border border-border-theme rounded-xl p-5 flex flex-col gap-4 shadow-sm">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider">Your Best</h3>
+            <h2 className="text-xs font-bold text-text-muted uppercase tracking-wider">Your Best</h2>
             <div className="flex justify-between items-center text-sm">
               <span className="text-text-muted">Best Time</span>
               <span className="font-mono font-bold text-text-main">{bestScore ? formatTime(bestScore.time) : "--:--"}</span>
@@ -391,7 +391,7 @@ export default function App() {
           {/* D. Game Settings */}
           <div className="flex flex-col gap-4">
             <div className="bg-surface border border-border-theme rounded-xl p-5 flex flex-col gap-4 shadow-sm">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider">Game Settings</h3>
+              <h2 className="text-xs font-bold text-text-muted uppercase tracking-wider">Game Settings</h2>
               
               <div className="flex flex-col">
                 <span className="text-[10px] items-center uppercase tracking-wider text-text-muted font-bold mb-1">Difficulty</span>
@@ -432,8 +432,8 @@ export default function App() {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden bg-surface rounded-xl border border-border-theme p-4 space-y-4"
                 >
-                  <div>
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">Grid Size</label>
+                  <fieldset className="min-w-0">
+                    <legend className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">Grid Size</legend>
                     <div className="flex gap-2">
                       {[4, 6].map(size => (
                         <button
@@ -457,9 +457,9 @@ export default function App() {
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">Theme</label>
+                  </fieldset>
+                  <fieldset className="min-w-0">
+                    <legend className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">Theme</legend>
                     <div className="flex gap-2">
                       {(['icons', 'emojis', 'fruits'] as GameSettings['theme'][]).map(theme => (
                         <button
@@ -481,7 +481,7 @@ export default function App() {
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </fieldset>
                 </motion.div>
               )}
             </AnimatePresence>

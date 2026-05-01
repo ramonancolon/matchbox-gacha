@@ -40,6 +40,7 @@
     "@types/node": "^22.14.0",
     "@vitest/browser": "^4.1.4",
     "autoprefixer": "^10.4.21",
+    "axe-core": "^4.11.4",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "happy-dom": "^20.9.0",

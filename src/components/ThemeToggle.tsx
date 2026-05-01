@@ -29,7 +29,7 @@ export function ThemeToggle({ preference, onChange, className }: ThemeToggleProp
         'w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm'
       }
     >
-      <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+      <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" aria-hidden="true" />
     </button>
   );
 }

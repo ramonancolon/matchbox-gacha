@@ -245,7 +245,7 @@ export default function App() {
              <span className="text-[9px] sm:text-[10px] uppercase tracking-wider text-text-muted font-bold leading-none mb-1">Matches</span>
              <div className="text-[13px] sm:text-sm lg:text-sm xl:text-base font-bold font-mono text-text-main leading-none flex items-baseline gap-0.5">
                <span>{matches}</span>
-               <span className="text-[9px] opacity-40">/</span>
+               <span className="text-[9px] text-text-muted">/</span>
                <span>{(settings.gridSize * settings.gridSize) / 2}</span>
              </div>
           </div>
@@ -326,7 +326,7 @@ export default function App() {
           
           <button 
             onClick={initGame}
-            className="flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest bg-primary-theme text-white hover:bg-primary-theme/90 transition-all shadow-sm whitespace-nowrap"
+            className="flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest bg-primary-theme text-white dark:text-slate-950 hover:bg-primary-theme/90 transition-all shadow-sm whitespace-nowrap"
             aria-label="Start a new game"
           >
             <RotateCcw className="w-3.5 h-3.5" /> <span>New Game</span>
@@ -368,7 +368,7 @@ export default function App() {
               <p className="text-[11px] font-medium text-text-muted leading-relaxed">Sign in to track your personal bests across devices and qualify for the global leaderboard.</p>
               <button 
                 onClick={() => setShowSignIn(true)}
-                className="w-full py-2.5 bg-primary-theme text-white rounded-lg font-bold text-xs hover:bg-primary-theme/90 transition-all shadow-sm flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-primary-theme text-white dark:text-slate-950 rounded-lg font-bold text-xs hover:bg-primary-theme/90 transition-all shadow-sm flex items-center justify-center gap-2"
               >
                 <LogIn className="w-3.5 h-3.5" /> Start Syncing
               </button>
@@ -495,7 +495,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="py-3 px-4 text-center text-[10px] text-text-muted/70 font-mono tracking-wide" role="contentinfo">
+      <footer className="py-3 px-4 text-center text-[10px] text-text-muted font-mono tracking-wide" role="contentinfo">
         v{APP_VERSION}
       </footer>
 

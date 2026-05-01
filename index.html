@@ -87,6 +87,23 @@
         }
       }
     </style>
+    <script>
+      // Apply theme before first paint to avoid flash of wrong theme.
+      // Mirrors logic in src/lib/theme.ts; key kept in sync there.
+      (function () {
+        try {
+          var stored = localStorage.getItem('matchbox-gacha:theme');
+          var pref = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+          var osDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = pref === 'system' ? (osDark ? 'dark' : 'light') : pref;
+          var root = document.documentElement;
+          if (effective === 'dark') root.classList.add('dark');
+          root.dataset.theme = effective;
+        } catch (e) {
+          /* localStorage unavailable - fall through to default light */
+        }
+      })();
+    </script>
   </head>
   <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>

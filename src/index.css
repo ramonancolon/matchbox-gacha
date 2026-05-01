@@ -1,11 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* Tailwind v4: opt into class-based dark mode keyed off `.dark` on <html>.
+   The theme system in src/lib/theme.ts toggles this class based on
+   stored preference + prefers-color-scheme. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Theme Colors */
+  /* Light theme (default) semantic tokens */
   --color-bg-theme: #F4F6F8;
   --color-surface: #FFFFFF;
   --color-border-theme: #E2E8F0;
@@ -14,6 +19,19 @@
   --color-text-main: #1E293B;
   --color-text-muted: #64748B;
   --color-success-theme: #10B981;
+}
+
+/* Dark theme overrides — tuned, not inverted. Applied when <html> has
+   `.dark` (set by the theme manager). */
+.dark {
+  --color-bg-theme: #0B1220;
+  --color-surface: #131A2A;
+  --color-border-theme: #2A3346;
+  --color-primary-theme: #818CF8;
+  --color-primary-light: #1E2540;
+  --color-text-main: #E2E8F0;
+  --color-text-muted: #94A3B8;
+  --color-success-theme: #34D399;
 }
 
 @layer base {

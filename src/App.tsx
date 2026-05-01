@@ -218,7 +218,7 @@ export default function App() {
                 setThemePreference(pref);
                 logGameEvent('theme_preference_change', { preference: pref });
               }}
-              className="w-9 h-9 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
+              className="w-11 h-11 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
             />
             <button
               onClick={toggleSound}

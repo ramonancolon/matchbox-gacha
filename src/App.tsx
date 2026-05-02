@@ -218,16 +218,16 @@ export default function App() {
                 setThemePreference(pref);
                 logGameEvent('theme_preference_change', { preference: pref });
               }}
-              className="w-9 h-9 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
+              className="w-11 h-11 shrink-0 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all shadow-sm"
             />
             <button
               onClick={toggleSound}
-              className="w-11 h-11 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all"
+              className="w-11 h-11 shrink-0 rounded-full bg-surface border border-border-theme flex items-center justify-center text-text-muted transition-all shadow-sm"
               aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
               aria-pressed={!soundEnabled}
               title={soundEnabled ? "Mute sound" : "Unmute sound"}
             >
-              {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
@@ -285,11 +285,11 @@ export default function App() {
               setThemePreference(pref);
               logGameEvent('theme_preference_change', { preference: pref });
             }}
-            className="hidden lg:flex w-10 h-10 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"
+            className="hidden lg:flex w-11 h-11 shrink-0 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"
           />
           <button
             onClick={toggleSound}
-            className="hidden lg:flex w-11 h-11 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"
+            className="hidden lg:flex w-11 h-11 shrink-0 rounded-full bg-surface border border-border-theme items-center justify-center text-text-muted hover:text-primary-theme hover:border-primary-theme transition-all shadow-sm"
             title={soundEnabled ? "Mute" : "Unmute"}
             aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
             aria-pressed={!soundEnabled}

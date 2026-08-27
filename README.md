@@ -328,7 +328,7 @@ Gemini hints are served by the **`getHint` Cloud Function**; configure `GEMINI_A
 
 The limiter integration test runs in CI through the Firestore emulator and does not require deploy secrets. It uses a `demo-*` Firebase project ID intentionally for offline emulator mode.
 
-> The workflow is configured for a storage zone in **Falkenstein (DE)**, which uses the default `storage.bunnycdn.com` host. If you migrate the zone to another region, update the host in `.github/workflows/deploy.yml` (e.g. `ny.storage`, `la.storage`, `uk.storage`, `sg.storage`, `syd.storage`).
+> The workflow is configured for a storage zone in **Los Angeles (US)**, which uses the `la.storage.bunnycdn.com` host. If you migrate the zone to another region, update the host in `.github/workflows/deploy.yml` (e.g. `storage` for Falkenstein/DE, `ny.storage`, `uk.storage`, `sg.storage`, `syd.storage`).
 
 ### CDN note
 

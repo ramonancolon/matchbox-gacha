@@ -208,7 +208,7 @@ export default function App() {
             <div className="w-8 h-8 bg-primary-theme rounded-md flex items-center justify-center text-white" aria-hidden="true">
               <Box className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-bold tracking-tighter text-text-main m-0">MATCHBOX GACHA</h1>
+            <h1 className="text-xl font-bold tracking-tighter text-text-main m-0">MATCHBOX GACHAS</h1>
           </div>
           
           <div className="flex lg:hidden items-center gap-2">
